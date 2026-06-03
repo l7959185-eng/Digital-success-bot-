@@ -760,6 +760,17 @@ async function claimSalary() {
             alert("Error: " + e.message);
         }
     });
+}
+            updateBalanceUI();
+            showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!');
+            
+            // ডাটা রি-রেন্ডার করা
+            const docSnap = await getDoc(userRef);
+            if (docSnap.exists()) renderReferral(docSnap.data());
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    });
         }
         function publishJob() {
             const phone = localStorage.getItem('currentUser');
