@@ -404,20 +404,40 @@
             if(phone.length < 11) { tg.showAlert("সঠিক ফোন নাম্বার দিন!"); return; }
             let users = JSON.parse(localStorage.getItem('users') || "[]");
             if(!isLoginMode) {
-                if(users.find(u => u.phone === phone)) { showNotice('Duplicate Number!', 'এই নাম্বারটি আছে।', 'fa-phone-slash', 'var(--danger)'); return; }
-                startProcessing(3000, "CREATING ACCOUNT...", () => { 
-                    users.push({ email, phone, pass, balance: 0.00, referredBy: refBy, totalEarned: 0, claimedRefs: [], salaryClaimed: false, activePackages: [] }); 
-                    localStorage.setItem('users', JSON.stringify(users)); 
-                    localStorage.setItem('currentUser', phone); 
-                    checkSalaryCycleReset(); showMainApp(); 
-                });
-            } else {
-                const user = users.find(u => u.phone === phone && u.pass === pass);
-                if(user) { startProcessing(3000, "SECURE LOGIN...", () => { localStorage.setItem('currentUser', phone); showMainApp(); }); }
-                else { showNotice('Login Failed!', 'ভুল তথ্য।', 'fa-circle-xmark', 'var(--danger)'); }
-            }
-        }
+            // --- ফায়ারবেস সিস্টেম শুরু ---
+        const userRef = db.ref('users/' + phone);
 
+        userRef.once('value', (snapshot) => {
+            const userData = snapshot.val();
+
+            if (!isLoginMode) { 
+                // নতুন একাউন্ট তৈরি
+                if (userData) {
+                    showNotice('Duplicate!', 'এই নাম্বারে আইডি আছে', 'fa-circle-xmark', 'var(--danger)');
+                } else {
+                    const newUser = {
+                        email: email, phone: phone, pass: pass, balance: 0.00,
+                        referredBy: refBy, // লাইন ৪০৪ এর ভেরিয়েবল
+                        date: new Date().toISOString()
+                    };
+                    userRef.set(newUser).then(() => {
+                        localStorage.setItem('currentUser', phone);
+                        checkSalaryCycleReset();
+                        showMainApp();
+                    });
+                }
+            } else { 
+                // লগইন চেক
+                if (userData && userData.pass === pass) {
+                    localStorage.setItem('currentUser', phone);
+                    checkSalaryCycleReset();
+                    showMainApp();
+                } else {
+                    showNotice('Failed!', 'ভুল পাসওয়ার্ড বা আইডি', 'fa-circle-xmark', 'var(--danger)');
+                }
+            }
+        });
+        // --- ফায়ারবেস সিস্টেম শেষ ---
         function startProcessing(time, text, callback) {
             const overlay = document.getElementById('processing-overlay');
             document.getElementById('proc-text').innerText = text;
