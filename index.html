@@ -690,23 +690,54 @@ async function claimSalary() {
     });
 }
 
-        function renderReferral(user, users) {
-            const myRefs = users.filter(u => u.referredBy === user.phone);
-            const totalBonus = (user.claimedRefs ? user.claimedRefs.length : 0) * 30;
-            const refLink = "https://t.me/DigitalSuccessBot?start=" + user.phone;
-            let contentArea = document.getElementById('page-content');
-            contentArea.innerHTML = `<div class="ref-stat-box"><div class="ref-stat-card"><b>${myRefs.length}</b><span>মোট রেফার</span></div><div class="ref-stat-card"><b>${totalBonus.toFixed(2)}</b><span>রেফার বোনাস</span></div></div><div class="withdraw-card" style="margin-bottom:15px;"><p style="font-size:12px; margin-bottom:5px;">রেফার লিংক:</p><div style="display:flex; gap:10px;"><input type="text" value="${refLink}" readonly class="gs-input-box" style="margin:0; padding:10px; font-size:11px;"><button onclick="copyText('${refLink}')" style="background:var(--primary); color:black; border:none; border-radius:10px; padding:0 15px; font-weight:700;">COPY</button></div></div><div id="bonus-claim-area"></div>`;
-            const claimArea = document.getElementById('bonus-claim-area');
-            myRefs.forEach(ref => {
-                const alreadyClaimed = user.claimedRefs && user.claimedRefs.includes(ref.phone);
-                if(ref.totalEarned >= 50 && !alreadyClaimed) {
-                    const card = document.createElement('div'); card.className = 'job-card';
-                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div><p style="margin:0;">বন্ধু: ${ref.phone}</p><small style="color:var(--success);">শর্ত পূরণ হয়েছে!</small></div><button class="action-btn" style="width:auto; padding:8px 15px; margin:0; background:var(--success);" onclick="claimReferralBonus('${ref.phone}')">CLAIM 30 TK</button></div>`;
-                    claimArea.appendChild(card);
-                }
-            });
-        }
+        async function renderReferral(user) {
+    const phone = user.phone;
+    
+    // ফায়ারবেস থেকে আপনার রেফারালদের খুঁজে বের করা
+    const q = query(collection(db, "users"), where("referredBy", "==", phone));
+    const querySnapshot = await getDocs(q);
+    
+    let myRefs = [];
+    querySnapshot.forEach((doc) => {
+        myRefs.push(doc.data());
+    });
 
+    const refLink = "https://t.me/DigitalSuccessBot?start=" + phone;
+    const contentArea = document.getElementById('page-content');
+    
+    // রেফারেল পেজ রেন্ডার করা
+    contentArea.innerHTML = `
+        <div class="ref-stat-box" style="background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <p>আপনার রেফার লিঙ্ক: <br> <b style="color: var(--primary);">${refLink}</b></p>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <span>মোট রেফার: <b>${myRefs.length} জন</b></span>
+                <span>বোনাস পেয়েছেন: <b>${(user.claimedRefs ? user.claimedRefs.length : 0) * 10} ৳</b></span>
+            </div>
+        </div>
+        <div id="bonus-claim-area"></div>
+    `;
+
+    const claimArea = document.getElementById('bonus-claim-area');
+
+    myRefs.forEach(ref => {
+        const alreadyClaimed = user.claimedRefs && user.claimedRefs.includes(ref.phone);
+        
+        // শর্ত: যদি রেফার করা ইউজার ৫০ টাকার বেশি ইনকাম করে এবং আগে বোনাস না নেওয়া হয়
+        if (ref.totalEarned >= 50 && !alreadyClaimed) {
+            const card = document.createElement('div');
+            card.className = "ref-card";
+            card.style = "background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
+            card.innerHTML = `
+                <div>
+                    <div style="font-weight: bold;">${ref.phone}</div>
+                    <div style="font-size: 12px; color: green;">ইনকাম: ${ref.totalEarned} ৳</div>
+                </div>
+                <button onclick="claimRefBonus('${ref.phone}')" style="background: var(--success); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer;">১০ ৳ ক্লেইম</button>
+            `;
+            claimArea.appendChild(card);
+        }
+    });
+        }
         function claimReferralBonus(friendPhone) {
             const phone = localStorage.getItem('currentUser');
             let users = JSON.parse(localStorage.getItem('users') || "[]");
