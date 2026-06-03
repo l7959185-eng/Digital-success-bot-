@@ -454,9 +454,9 @@
 
         function updateBalanceUI() {
             const phone = localStorage.getItem('currentUser');
-            let users = JSON.parse(localStorage.getItem('users') || "[]");
-            const user = users.find(u => u.phone === phone);
-            if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2);
+let users = JSON.parse(localStorage.getItem('users') || "[]");
+const user = users.find(u => u.phone === phone);
+if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2);
         }
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
