@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DS Master Admin - Full Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-dark: #0f172a;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text-dark); 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+            overflow-y: auto; 
+            padding-top: 130px; 
+        }
+
+        #verify-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10000;
+        }
+        .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .top-nav {
+            width: 100%; background: var(--white); border-bottom: 1px solid var(--border);
+            padding: 10px; position: fixed; top: 0; left: 0; right: 0; z-index: 999; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .nav-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; width: 100%; max-width: 1200px; margin: 0 auto; }
+        .nav-btn {
+            padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #fdfdfd;
+            cursor: pointer; text-align: center; font-size: 9px; font-weight: 700; color: var(--text-light); transition: 0.3s;
+        }
+        .nav-btn i { display: block; font-size: 14px; margin-bottom: 2px; }
+        .nav-btn:hover, .nav-btn.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
+
+        .main-container { width: 100%; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .section { display: none; animation: slideDown 0.4s ease forwards; }
+        .section.active { display: block; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--white); border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .section-title { font-size: 1.1rem; font-weight: 800; color: var(--text-dark); margin-bottom: 15px; border-left: 5px solid var(--primary); padding-left: 12px; }
+
+        .intel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .intel-item { font-size: 13px; margin-bottom: 5px; }
+        .intel-item b { color: var(--text-light); font-size: 10px; display: block; text-transform: uppercase; }
+
+        .table-responsive { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
+        th { text-align: left; background: #f8fafc; padding: 12px; font-size: 11px; color: var(--text-light); border-bottom: 2px solid var(--border); text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+
+        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--text-light); }
+        input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #fdfdfd; margin-bottom: 15px; font-size: 13px; outline: none; }
+        .btn { padding: 10px 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-blue { background: var(--primary); color: white; }
+        .btn-green { background: var(--success); color: white; }
+        .btn-red { background: var(--danger); color: white; }
+
+        .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+        .toggle-switch { position: relative; width: 40px; height: 20px; }
+        .toggle-switch input { display: none; }
+        .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 20px; cursor: pointer; transition: 0.3s; }
+        .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.3s; }
+        input:checked + .slider { background: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .method-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+    <div id="verify-overlay">
+        <div class="spinner"></div>
+        <p style="font-weight: 800; margin-top: 15px; color: var(--primary);">SYSTEM VERIFYING...</p>
+    </div>
+
+    <div class="top-nav">
+        <div class="nav-grid">
+            <div class="nav-btn active" onclick="showSection('dash', this)"><i class="fa fa-home"></i> Dash</div>
+            <div class="nav-btn" onclick="showSection('withdraw', this)"><i class="fa fa-clock"></i> With Pay</div>
+            <div class="nav-btn" onclick="showSection('with-history', this)"><i class="fa fa-history"></i> With Hist</div>
+            <div class="nav-btn" onclick="showSection('package', this)"><i class="fa fa-box"></i> Pkg</div>
+            <div class="nav-btn" onclick="showSection('jobs', this)"><i class="fa fa-briefcase"></i> Jobs</div>
+            <div class="nav-btn" onclick="showSection('deposit', this)"><i class="fa fa-plus-circle"></i> Depo</div>
+            <div class="nav-btn" onclick="showSection('topup', this)"><i class="fa fa-gamepad"></i> Topup</div>
+            <div class="nav-btn" onclick="showSection('gmail', this)"><i class="fa fa-envelope"></i> Gmail</div>
+            <div class="nav-btn" onclick="showSection('search', this)"><i class="fa fa-search"></i> Intel</div>
+            <div class="nav-btn" onclick="showSection('salary', this)"><i class="fa fa-percent"></i> Salary</div>
+            <div class="nav-btn" onclick="showSection('switches', this)"><i class="fa fa-toggle-on"></i> Switch</div>
+            <div class="nav-btn" onclick="showSection('settings', this)"><i class="fa fa-cog"></i> Config</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- DASHBOARD -->
+        <div id="dash" class="section active">
+            <div class="card" style="text-align:center;">
+                <h1 style="color:var(--primary); margin:0; font-size: 22px;">DS MASTER ADMIN</h1>
+                <p style="color:var(--text-light); font-size: 12px;">Realistic Control & Reporting Panel</p>
+            </div>
+            <div class="card">
+                <div class="section-title">Quick Stats</div>
+                <div class="intel-grid">
+                    <div class="intel-item"><b>Total Users</b><span id="tot-users">0</span></div>
+                    <div class="intel-item"><b>System Balance</b><span id="tot-bal">0.00</span> TK</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WITHDRAW PENDING -->
+        <div id="withdraw" class="section">
+            <div class="card">
+                <div class="section-title">Pending Withdraw Requests</div>
+                <div class="table-responsive">
+                    <table id="with-table">
+                        <thead><tr><th>User ID</th><th>Amount</th><th>Method & Account No</th><th>Action</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- WITHDRAW HISTORY -->
+        <div id="with-history" class="section">
+            <div class="card">
+                <div class="section-title">Completed Withdrawals</div>
+                <div class="table-responsive">
+                    <table id="with-hist-table">
+                        <thead><tr><th>User ID</th><th>Amount</th><th>Account No</th><th>Status</th><th>Date</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PACKAGES -->
+        <div id="package" class="section">
+            <div class="card">
+                <div class="section-title">Add New Investment Package</div>
+                <label>Package Name</label>
+                <input type="text" id="pkg-name">
+                <div class="intel-grid">
+                    <div><label>Price</label><input type="number" id="pkg-price"></div>
+                    <div><label>Daily</label><input type="number" id="pkg-daily"></div>
+                    <div><label>Days</label><input type="number" id="pkg-days"></div>
+                </div>
+                <button class="btn btn-blue" style="width:100%;" onclick="verifyAction(() => addNewPackage())">ADD PACKAGE</button>
+            </div>
+            <div class="card">
+                <div class="section-title">Manage Packages</div>
+                <div class="table-responsive"><table id="pkg-table"><thead><tr><th>Name</th><th>Price</th><th>Daily</th><th>Days</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- JOBS -->
+        <div id="jobs" class="section">
+            <div class="card">
+                <div class="section-title">Micro Job Management</div>
+                <div class="table-responsive"><table id="jobs-table"><thead><tr><th>Provider</th><th>Title</th><th>Reward</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- DEPOSIT -->
+        <div id="deposit" class="section">
+            <div class="card">
+                <div class="section-title">Pending Deposits</div>
+                <div class="table-responsive"><table id="dep-table"><thead><tr><th>User</th><th>Amount</th><th>TrxID</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- TOPUP -->
+        <div id="topup" class="section">
+            <div class="card">
+                <div class="section-title">Pending Top-up Orders</div>
+                <div class="table-responsive"><table id="tp-table"><thead><tr><th>User</th><th>Diamonds</th><th>Player UID</th><th>Price</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- GMAIL SELL -->
+        <div id="gmail" class="section">
+            <div class="card">
+                <div class="section-title">Gmail Sales Intel</div>
+                <div class="table-responsive">
+                    <table id="gs-table">
+                        <thead><tr><th>User</th><th>Gmail</th><th>Password</th><th>Action</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTEL SEARCH -->
+        <div id="search" class="section">
+            <div class="card">
+                <div class="section-title">User Intelligence Finder</div>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="intel-search-input" placeholder="ফোন নাম্বার দিন...">
+                    <button class="btn btn-blue" onclick="verifyAction(() => searchUserIntel())">SEARCH</button>
+                </div>
+                <div id="intel-result" style="display:none; margin-top:20px;">
+                    <div class="user-intel-card">
+                        <div class="intel-grid">
+                            <div class="intel-item"><b>PHONE</b><span id="i-phone"></span></div>
+                            <div class="intel-item"><b>EMAIL</b><span id="i-email"></span></div>
+                            <div class="intel-item"><b>BALANCE</b><span id="i-bal"></span> TK</div>
+                            <div class="intel-item"><b>PASSWORD</b><span id="i-pass" style="color:var(--danger)"></span></div>
+                            <div class="intel-item"><b>TOTAL REFERS</b><span id="i-refcount">0</span></div>
+                            <div class="intel-item"><b>JOINED VIA</b><span id="i-referredBy">None</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SALARY -->
+        <div id="salary" class="section">
+            <div class="card">
+                <div class="section-title">Salary Management</div>
+                <label>Cycle Days</label>
+                <input type="number" id="set-salary-days">
+                <button class="btn btn-blue" onclick="verifyAction(() => saveSalaryConfig())">UPDATE CYCLE</button>
+                <div id="salary-track-list" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
+        <!-- SWITCHES -->
+        <div id="switches" class="section">
+            <div class="card">
+                <div class="section-title">Master Switches</div>
+                <div id="master-switches-container"></div>
+            </div>
+        </div>
+
+        <!-- CONFIG SETTINGS -->
+        <div id="settings" class="section">
+            <!-- ADS VIEW & REWARD CONTROL (UPDATED) -->
+            <div class="card">
+                <div class="section-title">Ads Control & Reward</div>
+                <div class="intel-grid">
+                    <div>
+                        <label>Daily Limit (Ads)</label>
+                        <input type="number" id="daily-ad-limit" placeholder="E.g. 10">
+                    </div>
+                    <div>
+                        <label>Reward (Per Ad TK)</label>
+                        <input type="number" id="ad-reward-tk" placeholder="E.g. 2">
+                    </div>
+                </div>
+                <button class="btn btn-blue" onclick="verifyAction(() => saveAdConfig())">SAVE AD SETTINGS</button>
+            </div>
+
+            <!-- TELEGRAM & SUPPORT LINKS (NEW) -->
+            <div class="card">
+                <div class="section-title">Support & Official Links</div>
+                <label>Official Telegram Group Link</label>
+                <input type="text" id="tg-group-link" placeholder="https://t.me/yourgroup">
+                <label>Support Bot/User Link</label>
+                <input type="text" id="tg-support-link" placeholder="https://t.me/yourid">
+                <button class="btn btn-green" onclick="verifyAction(() => saveTgLinks())">SAVE LINKS</button>
+            </div>
+
+            <div class="card">
+                <div class="section-title">Gmail Sale Controls</div>
+                <div class="intel-grid">
+                    <div><label>Min Gmails</label><input type="number" id="min-gmail-limit"></div>
+                    <div><label>Price per Gmail</label><input type="number" id="gmail-price-tk"></div>
+                </div>
+                <button class="btn btn-green" onclick="verifyAction(() => saveGmailLimits())">SAVE GMAIL LIMITS</button>
+            </div>
+
+            <div class="card">
+                <div class="section-title">Withdraw Buttons Setup</div>
+                <div class="intel-grid">
+                    <div><label>Btn 1</label><input type="number" id="min-w-1"></div>
+                    <div><label>Btn 2</label><input type="number" id="min-w-2"></div>
+                    <div><label>Btn 3</label><input type="number" id="min-w-3"></div>
+                    <div><label>Btn 4</label><input type="number" id="min-w-4"></div>
+                </div>
+                <button class="btn btn-green" onclick="verifyAction(() => saveWithdrawOptions())">SAVE LIMITS</button>
+            </div>
+            
+            <div class="card">
+                <div class="section-title">Custom Deposit Methods</div>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="new-method-name" placeholder="Name">
+                    <input type="text" id="new-method-num" placeholder="Number">
+                    <button class="btn btn-green" onclick="verifyAction(() => addNewCustomMethod())">ADD</button>
+                </div>
+                <div id="extra-methods-list" style="margin-top:15px;"></div>
+            </div>
+            
+            <div class="card">
+                <div class="section-title">Gmail General Settings</div>
+                <label>Notice</label><textarea id="set-gmail-note"></textarea>
+                <label>Default Pass</label><input type="text" id="set-gmail-sys-pass">
+                <button class="btn btn-blue" onclick="verifyAction(() => saveGmailConfig())">SAVE GMAIL CONFIG</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function verifyAction(callback) {
+            document.getElementById('verify-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('verify-overlay').style.display = 'none';
+                callback();
+            }, 1000);
+        }
+
+        function showSection(id, btn) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(btn) btn.classList.add('active');
+            window.scrollTo(0,0);
+            loadData(id);
+        }
+
+        function loadData(id) {
+            const users = JSON.parse(localStorage.getItem('users') || "[]");
+            if(id === 'dash') {
+                document.getElementById('tot-users').innerText = users.length;
+                let b = 0; users.forEach(u => b += (u.balance || 0));
+                document.getElementById('tot-bal').innerText = b.toFixed(2);
+            }
+            if(id === 'withdraw') renderWithdrawals(users, 'Pending');
+            if(id === 'with-history') renderWithdrawals(users, 'History');
+            if(id === 'package') renderPackages();
+            if(id === 'jobs') renderJobs();
+            if(id === 'deposit') renderDeposits(users);
+            if(id === 'topup') renderTopups(users);
+            if(id === 'gmail') renderGmailSales(users);
+            if(id === 'switches') renderSwitches();
+            if(id === 'salary') loadSalaryConfig(users);
+            if(id === 'settings') loadSettings();
+        }
+
+        // --- NEW: AD CONFIG (LIMIT & REWARD) ---
+        function saveAdConfig() {
+            localStorage.setItem('daily_ad_limit', document.getElementById('daily-ad-limit').value);
+            localStorage.setItem('ad_reward_tk', document.getElementById('ad-reward-tk').value);
+            alert("Ads Limit & Reward Updated!");
+        }
+
+        // --- NEW: TELEGRAM LINKS ---
+        function saveTgLinks() {
+            localStorage.setItem('tg_group_link', document.getElementById('tg-group-link').value);
+            localStorage.setItem('tg_support_link', document.getElementById('tg-support-link').value);
+            alert("Telegram Support Links Saved!");
+        }
+
+        // --- WITHDRAW LOGIC ---
+        function renderWithdrawals(users, mode) {
+            const body = mode === 'Pending' ? document.querySelector('#with-table tbody') : document.querySelector('#with-hist-table tbody');
+            body.innerHTML = "";
+            users.forEach(u => {
+                const wh = JSON.parse(localStorage.getItem('wh_'+u.phone) || "[]");
+                wh.forEach((w, i) => {
+                    const accNo = w.num || w.acc || "N/A";
+                    if(mode === 'Pending' && w.status === 'Pending') {
+                        body.innerHTML += `<tr><td>${u.phone}</td><td>${w.amt}</td><td><b>${w.method}</b><br>No: <b style="color:var(--danger)">${accNo}</b></td><td><button class="btn btn-green" onclick="verifyAction(()=>actWith('${u.phone}',${i},'Success'))">Approve</button><button class="btn btn-red" onclick="verifyAction(()=>actWith('${u.phone}',${i},'Rejected',${w.amt}))">Reject</button></td></tr>`;
+                    } else if(mode === 'History' && w.status !== 'Pending') {
+                        body.innerHTML += `<tr><td>${u.phone}</td><td>${w.amt}</td><td>${accNo}</td><td><span style="color:${w.status==='Success'?'green':'red'}">${w.status}</span></td><td>${w.date || '---'}</td></tr>`;
+                    }
+                });
+            });
+        }
+
+        function actWith(p, i, s, amt) {
+            let h = JSON.parse(localStorage.getItem('wh_'+p));
+            if(s === 'Rejected') {
+                let u = JSON.parse(localStorage.getItem('users'));
+                let target = u.find(x => x.phone === p);
+                if(target) target.balance += (amt + (amt * 0.05));
+                localStorage.setItem('users', JSON.stringify(u));
+            }
+            h[i].status = s; localStorage.setItem('wh_'+p, JSON.stringify(h)); loadData('withdraw');
+        }
+
+        // --- TOPUP SYSTEM ---
+        function renderTopups(users) {
+            const body = document.querySelector('#tp-table tbody'); body.innerHTML = "";
+            users.forEach(u => {
+                const history = JSON.parse(localStorage.getItem('tp_'+u.phone) || "[]");
+                history.forEach((t, i) => { if(t.status === 'Pending') {
+                    body.innerHTML += `<tr><td>${u.phone}</td><td>${t.dm}</td><td><b style="color:var(--primary)">${t.uid}</b></td><td>${t.price}</td><td><button class="btn btn-green" onclick="verifyAction(()=>actTp('${u.phone}',${i},'Success'))">Approve</button><button class="btn btn-red" onclick="verifyAction(()=>actTp('${u.phone}',${i},'Rejected',${t.price}))">Reject</button></td></tr>`;
+                }});
+            });
+        }
+
+        function actTp(p, i, s, price) {
+            let h = JSON.parse(localStorage.getItem('tp_'+p));
+            if(s === 'Rejected') {
+                let u = JSON.parse(localStorage.getItem('users'));
+                let target = u.find(x => x.phone === p);
+                if(target) target.balance += price;
+                localStorage.setItem('users', JSON.stringify(u));
+            }
+            h[i].status = s; localStorage.setItem('tp_'+p, JSON.stringify(h)); loadData('topup');
+        }
+
+        // --- INTEL SEARCH ---
+        function searchUserIntel() {
+            const phone = document.getElementById('intel-search-input').value;
+            const users = JSON.parse(localStorage.getItem('users') || "[]");
+            const u = users.find(x => x.phone === phone);
+            if(u) {
+                document.getElementById('intel-result').style.display = 'block';
+                document.getElementById('i-phone').innerText = u.phone;
+                document.getElementById('i-email').innerText = u.email || "N/A";
+                document.getElementById('i-bal').innerText = (u.balance || 0).toFixed(2);
+                document.getElementById('i-pass').innerText = u.pass;
+                document.getElementById('i-refcount').innerText = users.filter(x => x.referredBy === phone).length;
+                document.getElementById('i-referredBy').innerText = u.referredBy || "None";
+            } else { alert("Not Found!"); }
+        }
+
+        // --- PACKAGES ---
+        function addNewPackage() {
+            const name = document.getElementById('pkg-name').value;
+            const price = parseFloat(document.getElementById('pkg-price').value);
+            const daily = parseFloat(document.getElementById('pkg-daily').value);
+            const days = parseInt(document.getElementById('pkg-days').value);
+            if(!name || isNaN(price)) return alert("Fields Required");
+            let pkgs = JSON.parse(localStorage.getItem('packagesData') || "[]");
+            pkgs.push({ id: Date.now(), name, price, daily, days });
+            localStorage.setItem('packagesData', JSON.stringify(pkgs)); renderPackages();
+        }
+
+        function renderPackages() {
+            const body = document.querySelector('#pkg-table tbody'); body.innerHTML = "";
+            let pkgs = JSON.parse(localStorage.getItem('packagesData') || "[]");
+            pkgs.forEach((p, i) => {
+                body.innerHTML += `<tr><td>${p.name}</td><td>${p.price}</td><td>${p.daily}</td><td>${p.days}</td><td><button class="btn btn-red" onclick="verifyAction(()=>delPkg(${i}))">Del</button></td></tr>`;
+            });
+        }
+        function delPkg(i) {
+            let pkgs = JSON.parse(localStorage.getItem('packagesData') || "[]");
+            pkgs.splice(i,1); localStorage.setItem('packagesData', JSON.stringify(pkgs)); renderPackages();
+        }
+
+        // --- JOBS ---
+        function renderJobs() {
+            const body = document.querySelector('#jobs-table tbody'); body.innerHTML = "";
+            const jobs = JSON.parse(localStorage.getItem('all_jobs') || "[]");
+            jobs.forEach((j, i) => {
+                body.innerHTML += `<tr><td>${j.owner}</td><td>${j.title}</td><td>${j.reward}</td><td><button class="btn btn-red" onclick="verifyAction(()=>delJob(${i}))">Del</button></td></tr>`;
+            });
+        }
+        function delJob(i) {
+            let jobs = JSON.parse(localStorage.getItem('all_jobs') || "[]");
+            jobs.splice(i,1); localStorage.setItem('all_jobs', JSON.stringify(jobs)); renderJobs();
+        }
+
+        // --- DEPOSIT ---
+        function renderDeposits(users) {
+            const body = document.querySelector('#dep-table tbody'); body.innerHTML = "";
+            users.forEach(u => {
+                const h = JSON.parse(localStorage.getItem('dh_'+u.phone) || "[]");
+                h.forEach((d, i) => { if(d.status === 'Pending') {
+                    body.innerHTML += `<tr><td>${u.phone}</td><td>${d.amt}</td><td>${d.trx}</td><td><button class="btn btn-green" onclick="verifyAction(()=>actDep('${u.phone}',${i},'Success'))">Approve</button></td></tr>`;
+                }});
+            });
+        }
+        function actDep(p,i,s) {
+            let u = JSON.parse(localStorage.getItem('users')); let h = JSON.parse(localStorage.getItem('dh_'+p));
+            u.find(x => x.phone === p).balance += h[i].amt; h[i].status = s;
+            localStorage.setItem('users', JSON.stringify(u)); localStorage.setItem('dh_'+p, JSON.stringify(h)); loadData('deposit');
+        }
+
+        // --- GMAIL SELL ---
+        function renderGmailSales(users) {
+            const body = document.querySelector('#gs-table tbody'); body.innerHTML = "";
+            users.forEach(u => {
+                const h = JSON.parse(localStorage.getItem('gs_'+u.phone) || "[]");
+                h.forEach((g, i) => { if(g.status === 'Pending') {
+                    body.innerHTML += `<tr><td>${u.phone}</td><td>${g.gmail}</td><td>${g.pass}</td><td><button class="btn btn-green" onclick="verifyAction(()=>actGs('${u.phone}',${i},'Success'))">Approve</button> <button class="btn btn-red" onclick="verifyAction(()=>actGs('${u.phone}',${i},'Rejected'))">Reject</button></td></tr>`;
+                }});
+            });
+        }
+        function actGs(p,i,s) {
+            let h = JSON.parse(localStorage.getItem('gs_'+p));
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            let target = users.find(x => x.phone === p);
+            
+            if(s === 'Success' && target) {
+                const price = parseFloat(localStorage.getItem('gmail_price_tk') || 0);
+                target.balance += price;
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+
+            h[i].status = s;
+            localStorage.setItem('gs_'+p, JSON.stringify(h)); loadData('gmail');
+        }
+
+        // --- SWITCHES ---
+        function renderSwitches() {
+            const cont = document.getElementById('master-switches-container'); cont.innerHTML = "";
+            const st = JSON.parse(localStorage.getItem('btn_states') || "{}");
+            ["Ads View", "Deposit", "Gmail Sell", "FB Sell", "Insta Sell", "Transfer", "Topup", "Microjob", "Job Post", "Referral", "Salary", "Withdraw"].forEach(b => {
+                const on = st[b] !== false;
+                cont.innerHTML += `<div class="switch-row"><div><b>${b}</b></div><label class="toggle-switch"><input type="checkbox" id="sw-${b}" ${on?'checked':''} onchange="toggleBtn('${b}')"><span class="slider"></span></label></div>`;
+            });
+        }
+        function toggleBtn(b) {
+            let st = JSON.parse(localStorage.getItem('btn_states') || "{}");
+            st[b] = document.getElementById(`sw-${b}`).checked;
+            localStorage.setItem('btn_states', JSON.stringify(st));
+        }
+
+        // --- SETTINGS & CONFIG ---
+        function loadSettings() {
+            document.getElementById('min-w-1').value = localStorage.getItem('min_w_1') || 100;
+            document.getElementById('min-w-2').value = localStorage.getItem('min_w_2') || 200;
+            document.getElementById('min-gmail-limit').value = localStorage.getItem('min_gmail_limit') || 1;
+            document.getElementById('gmail-price-tk').value = localStorage.getItem('gmail_price_tk') || 5;
+            document.getElementById('daily-ad-limit').value = localStorage.getItem('daily_ad_limit') || 0;
+            document.getElementById('ad-reward-tk').value = localStorage.getItem('ad_reward_tk') || 0;
+            document.getElementById('tg-group-link').value = localStorage.getItem('tg_group_link') || "";
+            document.getElementById('tg-support-link').value = localStorage.getItem('tg_support_link') || "";
+            document.getElementById('set-gmail-note').value = localStorage.getItem('gmail_sell_notice') || "";
+            document.getElementById('set-gmail-sys-pass').value = localStorage.getItem('gmail_sell_sys_pass') || "PASS@123";
+            renderExtraMethods();
+        }
+
+        function saveGmailLimits() {
+            localStorage.setItem('min_gmail_limit', document.getElementById('min-gmail-limit').value);
+            localStorage.setItem('gmail_price_tk', document.getElementById('gmail-price-tk').value);
+            alert("Gmail Sale Limits & Price Updated!");
+        }
+
+        function saveWithdrawOptions() {
+            localStorage.setItem('min_w_1', document.getElementById('min-w-1').value);
+            localStorage.setItem('min_w_2', document.getElementById('min-w-2').value);
+            alert("Withdraw Options Saved!");
+        }
+
+        function saveGmailConfig() {
+            localStorage.setItem('gmail_sell_notice', document.getElementById('set-gmail-note').value);
+            localStorage.setItem('gmail_sell_sys_pass', document.getElementById('set-gmail-sys-pass').value);
+            alert("Gmail Settings Saved!");
+        }
+
+        function addNewCustomMethod() {
+            const name = document.getElementById('new-method-name').value;
+            const num = document.getElementById('new-method-num').value;
+            let m = JSON.parse(localStorage.getItem('custom_deposit_methods') || "[]");
+            m.push({name, num}); localStorage.setItem('custom_deposit_methods', JSON.stringify(m));
+            renderExtraMethods();
+        }
+
+        function renderExtraMethods() {
+            const d = document.getElementById('extra-methods-list'); d.innerHTML = "";
+            let m = JSON.parse(localStorage.getItem('custom_deposit_methods') || "[]");
+            m.forEach((x, i) => { d.innerHTML += `<div class="method-item"><span>${x.name}: ${x.num}</span><button onclick="verifyAction(()=>delM(${i}))">X</button></div>`; });
+        }
+        function delM(i) {
+            let m = JSON.parse(localStorage.getItem('custom_deposit_methods') || "[]");
+            m.splice(i, 1); localStorage.setItem('custom_deposit_methods', JSON.stringify(m)); renderExtraMethods();
+        }
+
+        function loadSalaryConfig(users) {
+            document.getElementById('set-salary-days').value = localStorage.getItem('salary_cycle_days') || 30;
+            const trackList = document.getElementById('salary-track-list'); trackList.innerHTML = "";
+            users.forEach(u => {
+                const myRefs = users.filter(ref => ref.referredBy === u.phone);
+                const complete = myRefs.filter(r => (r.totalEarned || 0) >= 50).length;
+                const percent = Math.min((complete / 10) * 100, 100);
+                trackList.innerHTML += `<div style="font-size:10px; padding:5px; border-bottom:1px solid var(--border)">${u.phone}: ${percent}% complete</div>`;
+            });
+        }
+        function saveSalaryConfig() {
+            localStorage.setItem('salary_cycle_days', document.getElementById('set-salary-days').value);
+            alert("Salary Cycle Updated!");
+        }
+
+        window.onload = () => loadData('dash');
+    </script>
+</body>
+</html>

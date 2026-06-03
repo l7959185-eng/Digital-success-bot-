@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Digital Success Bot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK ( মাঝখান দিয়ে যুক্ত করা হয়েছে ) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --primary: #00d2ff;
+            --secondary: #3a7bd5;
+            --accent: #6366f1;
+            --bg-black: #000000;
+            --card-dark: #111827;
+            --text-white: #ffffff;
+            --text-gray: #94a3b8;
+            --danger: #ff4757;
+            --success: #10b981;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0; background: var(--bg-black); color: var(--text-white);
+            height: 100vh; overflow: hidden;
+        }
+
+        /* অ্যানিমেশন */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); } 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* --- Real-Time Internet Checker Overlay --- */
+        #actual-internet-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000000; z-index: 99999999; display: none;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        #actual-internet-overlay i { font-size: 70px; color: var(--danger); margin-bottom: 20px; animation: pulse 2s infinite; }
+        #actual-internet-overlay h2 { color: white; margin: 10px 0; letter-spacing: 1px; }
+        #actual-internet-overlay p { color: var(--text-gray); font-size: 14px; padding: 0 40px; line-height: 1.6; }
+
+        /* ব্যানার ডিজাইন */
+        .welcome-promo-banner {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            margin-bottom: 20px; padding: 20px; border-radius: 25px;
+            display: flex; align-items: center; gap: 15px; border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.3); animation: fadeIn 0.8s ease;
+        }
+        .banner-icon-circle { background: linear-gradient(135deg, var(--primary), var(--accent)); width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; flex-shrink: 0; animation: pulse 2s infinite; }
+        .banner-text h4 { margin: 0; font-size: 15px; color: var(--primary); font-weight: 700; }
+        .banner-text p { margin: 4px 0 0 0; font-size: 11px; color: #cbd5e1; line-height: 1.4; }
+
+        .join-section-new { background: rgba(255, 255, 255, 0.05); border-radius: 30px; padding: 20px 15px; margin-top: 25px; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .join-title-area { text-align: center; margin-bottom: 20px; position: relative; }
+        .join-title-area h3 { font-size: 18px; color: #fff; margin: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .join-title-area h3 i { background: var(--accent); padding: 8px; border-radius: 50%; font-size: 14px; }
+        .join-title-area p { font-size: 10px; color: var(--text-gray); margin: 5px 0 0 0; }
+        .join-list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .join-item-card { background: #fff; border-radius: 20px; padding: 12px; display: flex; align-items: center; justify-content: space-between; text-decoration: none; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .ji-content { display: flex; align-items: center; gap: 10px; }
+        .ji-icon-box { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; }
+        .ji-text h5 { margin: 0; font-size: 11px; color: #333; font-weight: 700; }
+        .ji-text span { font-size: 8px; color: #666; display: block; }
+        .ji-arrow { color: #ccc; font-size: 12px; background: #f09819; padding: 4px 7px; border-radius: 50%; }
+
+        .bg-tg-blue { background: linear-gradient(135deg, #0088cc, #00d2ff); }
+        .bg-adm-orange { background: linear-gradient(135deg, #f09819, #edde5d); }
+
+        /* লগইন/রেজিস্ট্রেশন */
+        .auth-container { display: none; height: 100vh; width: 100%; justify-content: center; align-items: center; padding: 25px; background: radial-gradient(circle at top right, #1e293b, #000000); position: fixed; z-index: 10000; }
+        .auth-container.active { display: flex; animation: fadeIn 0.5s ease; }
+        .auth-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(25px); padding: 30px 20px; border-radius: 30px; width: 100%; max-width: 380px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .input-group { position: relative; margin-bottom: 15px; }
+        .input-group i { position: absolute; left: 18px; top: 15px; color: var(--primary); transition: 0.3s; }
+        .auth-card input, .withdraw-form input, .withdraw-form select { width: 100%; padding: 14px 15px 14px 50px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.5); color: white; font-size: 14px; transition: 0.3s; }
+        .auth-btn, .action-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; border-radius: 15px; color: white; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 8px 15px rgba(0, 210, 255, 0.2); transition: 0.3s; }
+
+        /* প্রসেসিং ওভারলে */
+        #processing-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 20000; }
+        .spinner-box { position: relative; width: 80px; height: 80px; display: flex; justify-content: center; align-items: center; }
+        .spinner { width: 60px; height: 60px; border: 4px solid rgba(0, 210, 255, 0.1); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .spinner-inner { position: absolute; width: 35px; height: 35px; border: 3px solid rgba(99, 102, 241, 0.1); border-bottom: 3px solid var(--accent); border-radius: 50%; animation: spinReverse 1.2s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spinReverse { 100% { transform: rotate(-360deg); } }
+
+        /* অ্যাপ বডি */
+        .app-screen { display: none; flex-direction: column; height: 100vh; background: var(--bg-black); }
+        .app-screen.active { display: flex; }
+        .app-header { background: #000000; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
+        .sidebar { position: fixed; left: -100%; top: 0; width: 280px; height: 100%; background: #0a0a0a; z-index: 9999; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); padding-top: 60px; border-right: 1px solid rgba(255,255,255,0.1); }
+        .sidebar.active { left: 0; }
+        .sidebar-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: #cbd5e1; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .sidebar-item:active { background: rgba(255,255,255,0.05); color: var(--primary); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9998; display: none; }
+        .overlay.active { display: block; }
+        .content-area { flex-grow: 1; position: relative; overflow: hidden; }
+        .page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-black); overflow-y: auto; padding: 15px; padding-bottom: 180px; transition: 0.4s ease; }
+        .page-sub { z-index: 20; transform: translateX(100%); }
+        .page-sub.active { transform: translateX(0); animation: slideInRight 0.4s ease forwards; }
+
+        .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; animation: scaleIn 0.5s ease; }
+        .grid-item { background: #111827; border-radius: 20px; display: flex; flex-direction: column; align-items: center; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .grid-item:active { transform: scale(0.92); background: #1e293b; }
+        .icon-box { padding: 18px 0 10px 0; font-size: 28px; }
+        .item-label { background: rgba(255,255,255,0.03); width: 100%; padding: 10px 2px; text-align: center; font-size: 8.5px; font-weight: 700; color: #e2e8f0; border-top: 1px solid rgba(255,255,255,0.05); border-radius: 0 0 20px 20px; }
+        .bot-banner { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px; border-radius: 25px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; border: 1px solid rgba(99, 102, 241, 0.3); }
+        .bot-icon { background: var(--accent); width: 55px; height: 55px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3); animation: float 3s ease-in-out infinite; }
+
+        .withdraw-card { background: #111827; padding: 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .amt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; }
+        .amt-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px 5px; border-radius: 12px; font-size: 10px; font-weight: 700; transition: 0.3s; }
+        .amt-btn.selected { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; transform: scale(1.08); box-shadow: 0 0 15px rgba(0, 210, 255, 0.4); }
+        .calc-box { background: rgba(0, 210, 255, 0.05); padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px dashed rgba(255,255,255,0.1); }
+        .calc-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+
+        .cs-footer { margin-top: 15px; text-align: center; }
+        .cs-link { background: rgba(0, 210, 255, 0.1); display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 50px; color: var(--primary); font-size: 12px; text-decoration: none; font-weight: 700; border: 1px solid rgba(0, 210, 255, 0.2); transition: 0.3s; }
+        .social-box { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+        .social-item { color: var(--text-gray); font-size: 11px; text-decoration: none; display: flex; align-items: center; gap: 5px; }
+        .footer-note { font-size: 9px; color: #4b5563; margin-top: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+
+        .bottom-nav { position: fixed; bottom: 20px; left: 15px; right: 15px; background: #111827; border-radius: 25px; display: flex; justify-content: space-around; padding: 12px 0; border: 1px solid rgba(255,255,255,0.05); z-index: 1500; }
+        .nav-link { color: #64748b; text-decoration: none; font-size: 10px; text-align: center; transition: 0.3s; }
+        .nav-link.active { color: var(--primary); transform: translateY(-5px); }
+        .nav-link i { font-size: 20px; display: block; margin-bottom: 2px; }
+
+        #notice-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 30000; }
+        .notice-card { width: 85%; background: #111827; padding: 30px; border-radius: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.1); animation: scaleIn 0.3s ease; }
+
+        .gs-input-box { width: 100%; padding: 15px 15px 15px 50px; border-radius: 18px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); color: white; font-size: 14px; transition: 0.4s; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+        .gs-input-box:focus { border-color: var(--primary); background: rgba(0, 210, 255, 0.05); box-shadow: 0 0 15px rgba(0, 210, 255, 0.2); }
+
+        /* টপআপ ডিজাইন */
+        .tp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .tp-box { background: #ffffff; border-radius: 10px; padding: 10px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+        .tp-box:active { transform: scale(0.96); background: #f8fafc; }
+        .tp-left { display: flex; align-items: center; gap: 8px; }
+        .tp-txt b { font-size: 12px; color: #334155; display: block; line-height: 1.2; }
+        .tp-txt span { font-size: 9px; color: #64748b; }
+        .tp-price { font-size: 12px; font-weight: 800; color: #f97316; }
+
+        /* জব কার্ড ডিজাইন */
+        .job-card { background: #111827; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 15px; margin-bottom: 12px; }
+        .job-card h4 { margin: 0 0 5px 0; color: var(--primary); }
+        .job-card p { margin: 0; font-size: 12px; color: var(--text-gray); }
+        .job-tag { background: rgba(0, 210, 255, 0.1); color: var(--primary); font-size: 10px; padding: 4px 8px; border-radius: 5px; font-weight: 700; display: inline-block; margin-top: 10px; }
+        .plus-btn { background: var(--success); color: white; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 10px; }
+        .proof-item { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; margin-top: 10px; border-left: 3px solid var(--primary); }
+
+        /* Proof Screenshot Preview */
+        .proof-preview-img { width: 100%; height: 150px; object-fit: contain; border-radius: 10px; margin-top: 10px; border: 1px solid var(--primary); }
+        
+        /* Referral Styles */
+        .ref-stat-box { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .ref-stat-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .ref-stat-card b { display: block; font-size: 18px; color: var(--primary); }
+        .ref-stat-card span { font-size: 10px; color: var(--text-gray); }
+
+        /* Salary Dashboard Styles (As per Screenshot) */
+        .salary-header { background: linear-gradient(135deg, #3b82f6, #6366f1); padding: 25px 20px; border-radius: 25px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .salary-info-banner { background: #fffbeb; color: #92400e; padding: 12px; border-radius: 15px; font-size: 10.5px; font-weight: 600; margin-bottom: 15px; border: 1px solid #fde68a; display: flex; align-items: center; gap: 8px; }
+        .milestone-card { background: white; border-radius: 20px; padding: 15px; margin-bottom: 15px; border: 1px solid #e2e8f0; color: #1e293b; }
+        .milestone-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .milestone-badge { background: #6366f1; color: white; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .progress-container { background: #f1f5f9; height: 10px; border-radius: 10px; overflow: hidden; margin: 8px 0; }
+        .progress-bar { height: 100%; transition: 0.5s ease; border-radius: 10px; }
+        .claim-area { border: 2px dashed #6366f1; border-radius: 25px; padding: 20px; text-align: center; margin-bottom: 15px; background: rgba(99, 102, 241, 0.02); }
+        .claim-btn-big { background: #e2e8f0; color: #94a3b8; border: none; padding: 12px; border-radius: 12px; width: 100%; font-weight: 700; font-size: 13px; }
+
+        /* ADS VIEW HIGH QUALITY STYLE */
+        .ads-view-card { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); padding: 30px 20px; border-radius: 30px; text-align: center; border: 1px solid rgba(0, 210, 255, 0.2); box-shadow: 0 15px 35px rgba(0,0,0,0.5); animation: fadeIn 0.5s ease; }
+        .ads-icon-box { width: 80px; height: 80px; background: rgba(0, 210, 255, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; border: 2px solid var(--primary); }
+        .ads-icon-box i { font-size: 35px; color: var(--primary); animation: pulse 2s infinite; }
+        .ads-timer-circle { width: 120px; height: 120px; border-radius: 50%; border: 6px solid rgba(255,255,255,0.05); border-top: 6px solid var(--primary); margin: 20px auto; display: flex; align-items: center; justify-content: center; position: relative; }
+        .ads-timer-circle span { font-size: 36px; font-weight: 800; color: var(--primary); }
+        .reward-badge { background: var(--success); color: white; padding: 5px 15px; border-radius: 50px; font-size: 12px; font-weight: 700; display: inline-block; margin-top: 10px; }
+
+        /* By Package Specific Designs (Box styled) */
+        .pkg-container { background: #111827; border-radius: 25px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 15px; text-align: center; animation: fadeIn 0.5s ease; }
+        .pkg-container h3 { color: var(--primary); margin: 0 0 10px 0; }
+        .pkg-container p { color: var(--text-gray); font-size: 13px; margin: 5px 0; }
+        .pkg-container .price-box { font-size: 22px; font-weight: 800; color: var(--success); margin: 15px 0; display: block; border: 1px dashed var(--success); padding: 5px; border-radius: 10px; }
+        .pkg-history-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- রিয়েল-টাইম ইন্টারনেট ব্লকার -->
+    <div id="actual-internet-overlay">
+        <div style="padding: 20px;">
+            <i class="fa-solid fa-wifi-slash"></i>
+            <h2>No Internet!</h2>
+            <p>আপনার ফোনে ডাটা (MB) অথবা ওয়াইফাই সংযোগে ইন্টারনেট নেই। দয়া করে সচল ইন্টারনেট সংযোগ ব্যবহার করুন।</p>
+        </div>
+    </div>
+
+    <div id="processing-overlay">
+        <div class="spinner-box"><div class="spinner"></div><div class="spinner-inner"></div></div>
+        <p id="proc-text" style="color: var(--primary); font-size: 14px; font-weight: 700; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase;">Processing...</p>
+    </div>
+
+    <!-- লগইন/রেজিস্ট্রেশন স্ক্রিন -->
+    <div id="auth-screen" class="auth-container active">
+        <div class="auth-card">
+            <h2 id="auth-title" style="color: var(--primary); margin: 0 0 25px 0; letter-spacing: 1px;">REGISTRATION</h2>
+            <div id="reg-fields"><div class="input-group"><i class="fa fa-envelope"></i><input type="email" id="email" placeholder="Gmail Address"></div></div>
+            <div class="input-group"><i class="fa fa-phone"></i><input type="number" id="phone" placeholder="Phone Number"></div>
+            <div class="input-group"><i class="fa fa-lock"></i><input type="password" id="pass" placeholder="Password"></div>
+            <button class="auth-btn" onclick="handleAuth()">CONTINUE</button>
+            <p onclick="toggleAuth()" id="toggle-text" style="color:var(--text-gray); font-size:13px; cursor:pointer; margin-top:15px;">Already have account? <span style="color:var(--primary); font-weight:700;">Login</span></p>
+            <div class="social-box"><a href="#" class="social-item"><i class="fab fa-facebook"></i> Facebook</a><a href="#" class="social-item"><i class="fab fa-youtube"></i> YouTube</a><a href="#" class="social-item"><i class="fab fa-telegram"></i> Telegram</a></div>
+            <div class="cs-footer"><a href="https://t.me/YourSupportID" class="cs-link"><i class="fa-solid fa-headset"></i> 24/7 CUSTOMER SERVICE</a></div>
+        </div>
+    </div>
+
+    <!-- মেইন অ্যাপ স্ক্রিন -->
+    <div id="main-app" class="app-screen">
+        <header class="app-header">
+            <i class="fa fa-bars-staggered" onclick="toggleSidebar()" style="font-size: 22px; color: var(--primary); cursor: pointer;"></i>
+            <div style="font-weight: 800; color: var(--primary); letter-spacing: 1px;">DIGITAL SUCCESS</div>
+            <i class="fa-solid fa-bell" onclick="showNotice('Notification', 'ডিজিটাল সাকসেস প্ল্যাটফর্মে স্বাগতম!', 'fa-bell', 'var(--primary)')" style="font-size: 20px; color: var(--primary);"></i>
+        </header>
+
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-item" onclick="openPage('Deposit')"><i class="fa fa-wallet"></i> Deposit Money</div>
+            <div class="sidebar-item" onclick="openPage('Withdraw')"><i class="fa fa-money-bill-transfer"></i> Withdraw</div>
+            <div class="sidebar-item" onclick="openPage('Profile')"><i class="fa fa-user"></i> My Profile</div>
+            <div class="sidebar-item" onclick="openPage('My Job')"><i class="fa fa-briefcase"></i> My Job</div>
+            <div class="sidebar-item" onclick="logout()" style="color: var(--danger);"><i class="fa fa-sign-out"></i> Logout</div>
+        </div>
+        <div id="overlay" class="overlay" onclick="toggleSidebar()"></div>
+
+        <div class="content-area">
+            <div id="home-page" class="page">
+                <div class="welcome-promo-banner"><div class="banner-icon-circle"><i class="fa-solid fa-gift"></i></div><div class="banner-text"><h4>ডিজিটাল সাকসেস বটে আপনাকে স্বাগতম!</h4><p>সবাই নিয়ম মেনে কাজ করুন। আমরা আছি আপনার পাশে ২৪ ঘণ্টা।</p></div></div>
+                <div class="bot-banner"><div class="bot-icon"><i class="fa-solid fa-robot"></i></div><div><h3 style="margin:0; font-size:16px;">Hello Boss! 👋</h3><div style="background: rgba(0,210,255,0.1); padding: 4px 12px; border-radius: 10px; font-weight: 700; color: var(--primary); font-size: 13px; display: inline-block; margin-top: 5px;">Balance: <span id="home-bal">0.00</span> TK</div></div></div>
+
+                <div class="menu-grid">
+                    <div class="grid-item" onclick="openPage('Ads View')"><div class="icon-box"><i class="fa-solid fa-rectangle-ad" style="color:#00d2ff"></i></div><div class="item-label">ADS VIEW</div></div>
+                    <!-- New Button Added Here -->
+                    <div class="grid-item" onclick="openPage('By Package')"><div class="icon-box"><i class="fa-solid fa-box-open" style="color:#10b981"></i></div><div class="item-label">BY PACKAGE</div></div>
+                    
+                    <div class="grid-item" onclick="openPage('Deposit')"><div class="icon-box"><i class="fa-solid fa-wallet" style="color:#f59e0b"></i></div><div class="item-label">ADD BALANCE</div></div>
+                    <div class="grid-item" onclick="openPage('Gmail Sell')"><div class="icon-box"><i class="fa-solid fa-envelope-open-text" style="color:#ef4444"></i></div><div class="item-label">GMAIL SELL</div></div>
+                    <div class="grid-item" onclick="openPage('FB Sell')"><div class="icon-box"><i class="fa-brands fa-facebook" style="color:#3b82f6"></i></div><div class="item-label">FACEBOOK SELL</div></div>
+                    <div class="grid-item" onclick="openPage('Insta Sell')"><div class="icon-box"><i class="fa-brands fa-instagram" style="color:#ec4899"></i></div><div class="item-label">INSTAGRAM SELL</div></div>
+                    <div class="grid-item" onclick="openPage('Transfer')"><div class="icon-box"><i class="fa-solid fa-bolt-lightning" style="color:#facc15"></i></div><div class="item-label">TRANSFER</div></div>
+                    <div class="grid-item" onclick="openPage('Topup')"><div class="icon-box"><i class="fa-solid fa-mobile-retro" style="color:#8b5cf6"></i></div><div class="item-label">TOPUP</div></div>
+                    <div class="grid-item" onclick="openPage('Microjob')"><div class="icon-box"><i class="fa-solid fa-list-check" style="color:#10b981"></i></div><div class="item-label">MICROJOB</div></div>
+                    <div class="grid-item" onclick="openPage('Job Post')"><div class="icon-box"><i class="fa-solid fa-circle-plus" style="color:#3b82f6"></i></div><div class="item-label">JOB POST</div></div>
+                    <div class="grid-item" onclick="openPage('My Job')"><div class="icon-box"><i class="fa-solid fa-briefcase" style="color:#fbbf24"></i></div><div class="item-label">MY JOB</div></div>
+                    <div class="grid-item" onclick="openPage('Referral')"><div class="icon-box"><i class="fa-solid fa-users-rectangle" style="color:#ff4757"></i></div><div class="item-label">REFERRAL</div></div>
+                    <div class="grid-item" onclick="openPage('Salary')"><div class="icon-box"><i class="fa-solid fa-money-bill-trend-up" style="color:#f59e0b"></i></div><div class="item-label">SALARY</div></div>
+                    <div class="grid-item" onclick="openPage('Withdraw')"><div class="icon-box"><i class="fa-solid fa-money-check-dollar" style="color:#10b981"></i></div><div class="item-label">WITHDRAW</div></div>
+                </div>
+
+                <div class="join-section-new">
+                    <div class="join-title-area"><h3><i class="fa-solid fa-users"></i> আমাদের সাথে যুক্ত থাকুন</h3></div>
+                    <div class="join-list-grid">
+                        <a href="#" class="join-item-card"><div class="ji-content"><div class="ji-icon-box bg-tg-blue"><i class="fa-brands fa-telegram"></i></div><div class="ji-text"><h5>Telegram Group</h5><span>আমাদের গ্রুপে যোগ দিন</span></div></div></a>
+                        <a href="#" class="join-item-card"><div class="ji-content"><div class="ji-icon-box bg-adm-orange"><i class="fa-solid fa-headset"></i></div><div class="ji-text"><h5>Admin Support</h5><span>সহায়তার জন্য মেসেজ করুন</span></div></div></a>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:20px;" class="footer-note">Trust & Quality is our first priority</div>
+                <div class="social-box"><a href="#" class="social-item"><i class="fab fa-facebook"></i> Facebook</a><a href="#" class="social-item"><i class="fab fa-youtube"></i> YouTube</a><a href="#" class="social-item"><i class="fab fa-telegram"></i> Telegram</a></div>
+                <div class="cs-footer"><a href="https://t.me/YourSupportID" class="cs-link"><i class="fa-solid fa-headset"></i> 24/7 CUSTOMER SERVICE</a></div>
+            </div>
+
+            <div id="sub-page" class="page page-sub">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;"><i class="fa fa-arrow-left" onclick="closePage()" style="font-size:22px; color:white; cursor:pointer;"></i><h2 id="page-title" style="margin:0; color: var(--primary);">Page</h2></div>
+                <div id="page-content"></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <a href="#" class="nav-link active" onclick="closePage()"><i class="fa-solid fa-house"></i><span>Home</span></a>
+            <a href="#" class="nav-link" onclick="openPage('Withdraw')"><i class="fa-solid fa-money-bill-transfer"></i><span>Withdraw</span></a>
+            <a href="#" class="nav-link" onclick="openPage('Deposit')"><i class="fa-solid fa-wallet"></i><span>Deposit</span></a>
+            <a href="#" class="nav-link" onclick="openPage('Profile')"><i class="fa-solid fa-user-gear"></i><span>Profile</span></a>
+        </nav>
+    </div>
+
+    <!-- নোটিশ মোডাল -->
+    <div id="notice-overlay"><div class="notice-card"><i id="notice-icon" class="fa-solid fa-circle-check" style="font-size: 45px; margin-bottom: 15px;"></i><h3 id="notice-title" style="color: white; margin: 0;">Success!</h3><p id="notice-msg" style="color: #94a3b8; font-size: 14px; margin: 15px 0;"></p><button class="auth-btn" onclick="hideNotice()">OK, UNDERSTOOD</button></div></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        async function checkRealInternet() {
+            const overlay = document.getElementById('actual-internet-overlay');
+            if (!navigator.onLine) { overlay.style.display = 'flex'; return; }
+            try {
+                await fetch("https://www.google.com/favicon.ico", { mode: 'no-cors', cache: 'no-store' });
+                overlay.style.display = 'none';
+            } catch (e) { overlay.style.display = 'flex'; }
+        }
+        setInterval(checkRealInternet, 5000);
+        checkRealInternet();
+
+        let isLoginMode = false;
+        let selectedAmount = 0;
+        let depSelectedAmt = 0;
+        let depSelectedMethod = "";
+        let selectedDiamondPrice = 0;
+        let selectedDiamondCount = "";
+        let currentJobProofBase64 = "";
+
+        // --- Package Logic Data ---
+        let packagesData = JSON.parse(localStorage.getItem('packagesData') || "[]");
+        if(packagesData.length === 0) {
+            packagesData = [
+                { id: 1, name: "Normal package", price: 50, daily: 10, days: 10 },
+                { id: 2, name: "Normal package", price: 100, daily: 20, days: 15 },
+                { id: 3, name: "VIP package", price: 200, daily: 50, days: 6 }
+            ];
+            localStorage.setItem('packagesData', JSON.stringify(packagesData));
+        }
+
+        // --- স্মার্ট কপি সিস্টেম লজিক ---
+        function copyText(text) {
+            const input = document.createElement('textarea'); input.value = text;
+            document.body.appendChild(input); input.select(); document.execCommand('copy');
+            document.body.removeChild(input); 
+            showNotice('Copied!', 'টেক্সট সফলভাবে কপি হয়েছে।', 'fa-copy', 'var(--success)');
+        }
+
+        // --- স্যালারি রিসেট লজিক (৩০ দিন পর পর) ---
+        function checkSalaryCycleReset() {
+            const lastReset = localStorage.getItem('salaryCycleStart');
+            const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            if (!lastReset || (now - parseInt(lastReset)) >= thirtyDays) {
+                localStorage.setItem('salaryCycleStart', now.toString());
+                let users = JSON.parse(localStorage.getItem('users') || "[]");
+                users.forEach(u => u.salaryClaimed = false);
+                localStorage.setItem('users', JSON.stringify(users));
+                return true;
+            }
+            return false;
+        }
+
+        // --- কাউন্টডাউন টাইমার ফাংশন ---
+        function startSalaryCountdown() {
+            const timerEl = document.getElementById('salary-countdown-timer');
+            if(!timerEl) return;
+            const updateTimer = () => {
+                const cycleStart = parseInt(localStorage.getItem('salaryCycleStart') || Date.now());
+                const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const diff = (cycleStart + thirtyDays) - now;
+                if (diff <= 0) { checkSalaryCycleReset(); return; }
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+                timerEl.innerHTML = `${d}d ${h}h ${m}m ${s}s`;
+            };
+            updateTimer(); setInterval(updateTimer, 1000);
+        }
+
+        function toggleAuth() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? "LOGIN" : "REGISTRATION";
+            document.getElementById('reg-fields').style.display = isLoginMode ? "none" : "block";
+            document.getElementById('toggle-text').innerHTML = isLoginMode ? 'No account? <span style="color:var(--primary); font-weight:700;">Register</span>' : 'Already have account? <span style="color:var(--primary); font-weight:700;">Login</span>';
+        }
+
+        function handleAuth() {
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const pass = document.getElementById('pass').value;
+            const urlParams = new URLSearchParams(window.location.search);
+            const refBy = urlParams.get('ref') || tg.initDataUnsafe.start_param;
+            if(phone.length < 11) { tg.showAlert("সঠিক ফোন নাম্বার দিন!"); return; }
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            if(!isLoginMode) {
+                if(users.find(u => u.phone === phone)) { showNotice('Duplicate Number!', 'এই নাম্বারটি আছে।', 'fa-phone-slash', 'var(--danger)'); return; }
+                startProcessing(3000, "CREATING ACCOUNT...", () => { 
+                    users.push({ email, phone, pass, balance: 0.00, referredBy: refBy, totalEarned: 0, claimedRefs: [], salaryClaimed: false, activePackages: [] }); 
+                    localStorage.setItem('users', JSON.stringify(users)); 
+                    localStorage.setItem('currentUser', phone); 
+                    checkSalaryCycleReset(); showMainApp(); 
+                });
+            } else {
+                const user = users.find(u => u.phone === phone && u.pass === pass);
+                if(user) { startProcessing(3000, "SECURE LOGIN...", () => { localStorage.setItem('currentUser', phone); showMainApp(); }); }
+                else { showNotice('Login Failed!', 'ভুল তথ্য।', 'fa-circle-xmark', 'var(--danger)'); }
+            }
+        }
+
+        function startProcessing(time, text, callback) {
+            const overlay = document.getElementById('processing-overlay');
+            document.getElementById('proc-text').innerText = text;
+            overlay.style.display = 'flex';
+            setTimeout(() => { overlay.style.display = 'none'; if(callback) callback(); }, time);
+        }
+
+        function showMainApp() {
+            document.getElementById('auth-screen').classList.remove('active');
+            document.getElementById('main-app').classList.add('active');
+            processAutomaticIncome(); // Check automatic income upon login
+            updateBalanceUI();
+        }
+
+        function updateBalanceUI() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const user = users.find(u => u.phone === phone);
+            if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2);
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
+        function closePage() { document.getElementById('sub-page').classList.remove('active'); }
+        function showNotice(t, m, i, c) { document.getElementById('notice-title').innerText = t; document.getElementById('notice-msg').innerText = m; document.getElementById('notice-icon').className = `fa-solid ${i || 'fa-circle-check'}`; if(c) document.getElementById('notice-icon').style.color = c; document.getElementById('notice-overlay').style.display = 'flex'; }
+        function hideNotice() { document.getElementById('notice-overlay').style.display = 'none'; }
+
+        function openPage(name) {
+            document.getElementById('page-title').innerText = name;
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const user = users.find(u => u.phone === phone);
+            const content = document.getElementById('page-content');
+
+            if(name === 'By Package') {
+                renderPackageUI(user);
+            }
+            else if(name === 'Withdraw') { renderWithdraw(user); }
+            else if(name === 'Deposit' || name === 'Add Balance') { renderDepositStep1(user); }
+            else if(name === 'Gmail Sell') { renderGmailSell(user); }
+            else if(name === 'Topup') { renderTopupInitial(); }
+            else if(name === 'Referral') { renderReferral(user, users); }
+            else if(name === 'Ads View') { renderAdsView(); }
+            else if(name === 'Salary') {
+                checkSalaryCycleReset();
+                const myRefs = users.filter(u => u.referredBy === phone);
+                const milestoneCount = myRefs.filter(r => (r.totalEarned || 0) >= 50).length;
+                const progressPercent = Math.min((milestoneCount / 10) * 100, 100);
+                const isClaimable = progressPercent >= 100 && !user.salaryClaimed;
+                content.innerHTML = `
+                <div class="salary-header"><h2 style="color:white; margin:0;">টিম স্যালারি ড্যাশবোর্ড</h2></div>
+                <div class="salary-info-banner"><i class="fa-solid fa-bullhorn"></i><span>আপনি পাবেন ৮০ট বোনাস, প্রতিটি রেফারার ৫০ট আয় করার পর।</span></div>
+                <div class="milestone-card"><div class="milestone-top"><h4 style="margin:0; font-size:13px;">মাইলস্টোন প্রগ্রেস (৳৮০)</h4><span class="milestone-badge">${Math.round(progressPercent)}%</span></div>
+                    <div class="progress-container"><div class="progress-bar" style="width:${progressPercent}%; background:#6366f1;"></div></div>
+                    <p style="text-align:center; font-size:10px; color:#64748b; margin-top:8px;">১০টির মধ্যে ${milestoneCount}টি মাইলস্টোন সম্পন্ন।</p></div>
+                <div class="claim-area"><p style="font-size:11px; color:#64748b; margin-bottom:5px;">ক্লেমযোগ্য ব্যালেন্স</p><h2 style="color:#6366f1; font-size:32px; margin:0 0 15px 0;">৳${isClaimable ? "৮০.০০" : "০.০০"}</h2>
+                    ${isClaimable ? `<button class="action-btn" style="margin:0;" onclick="claimSalary()">CLAIM NOW</button>` : `<button class="claim-btn-big">৳৮০ ব্যালেন্স প্রয়োজন</button>`}
+                    <div style="margin-top:15px; font-size:11px; color:#64748b;">⏳ পরবর্তী রিসেট হতে বাকি<br><b id="salary-countdown-timer" style="color:#ef4444;">Calculating...</b></div></div>`;
+                startSalaryCountdown();
+            }
+            else if(name === 'Job Post') {
+                content.innerHTML = `<div class="withdraw-card"><p style="text-align:center; color:var(--danger); font-size:12px; font-weight:bold;">জব পোস্ট ফি: ৫০.০০ টাকা</p><p style="font-size:12px; margin-bottom:5px;">জব টাইটেল নির্বাচন করুন:</p>
+                    <select id="j_title" class="gs-input-box" style="padding-left:15px; margin-bottom:10px; appearance:none;"><option value="Tiktok Follow">Tiktok Follow</option><option value="Sign Up">Sign Up</option><option value="Facebook Follow">Facebook Follow</option><option value="Watch Video">Watch Video</option></select>
+                    <input type="number" id="j_reward" class="gs-input-box" placeholder="রিওয়ার্ড (০.৫০ - ২০ টাকা)" style="margin-bottom:10px;">
+                    <input type="text" id="j_link" class="gs-input-box" placeholder="কাজের লিংক (URL)" style="margin-bottom:10px;">
+                    <textarea id="j_desc" class="gs-input-box" placeholder="কাজের বিবরণ লিখুন..." style="height:100px; padding-top:10px; margin-bottom:10px; padding-left:15px;"></textarea>
+                    <button class="action-btn" style="margin-top:20px;" onclick="publishJob()">PUBLISH JOB</button></div>`;
+            } else if(name === 'Microjob') {
+                const jobs = JSON.parse(localStorage.getItem('all_jobs') || "[]");
+                if(jobs.length === 0) content.innerHTML = '<p style="text-align:center; color:gray;">কোন কাজ নেই।</p>';
+                else { content.innerHTML = jobs.map(j => `<div class="job-card"><h4>${j.title}</h4><p>রিওয়ার্ড: <b>${j.reward} TK</b></p><button class="action-btn" style="padding:8px;" onclick="viewJob(${j.id})">কাজটি দেখুন</button></div>`).join(''); }
+            } else if(name === 'My Job') {
+                const jobs = JSON.parse(localStorage.getItem('all_jobs') || "[]").filter(j => j.owner === phone);
+                if(jobs.length === 0) content.innerHTML = '<p style="text-align:center; color:gray;">আপনি কোন জব পোস্ট করেননি।</p>';
+                else { content.innerHTML = jobs.map(j => { const subs = JSON.parse(localStorage.getItem('subs') || "[]").filter(s => s.jobId === j.id && s.status === 'Pending'); return `<div class="job-card"><h4>${j.title}</h4><p>পেন্ডিং কাজ: ${subs.length}</p><button class="action-btn" style="background:var(--accent);" onclick="manageSubs(${j.id})">চেক করুন</button></div>`; }).join(''); }
+            } else if(name === 'Profile') {
+                content.innerHTML = ""; startProcessing(2000, "LOADING PROFILE...", () => { renderProfileOptions(user); });
+            } else { content.innerHTML = `<p style="text-align:center; color:gray; margin-top:50px;">Section Coming Soon...</p>`; }
+            
+            document.getElementById('sub-page').classList.add('active');
+            if(document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
+        }
+
+        // --- BY PACKAGE UI ---
+        function renderPackageUI(user) {
+            const content = document.getElementById('page-content');
+            let html = `<div id="pkg-list">`;
+            
+            const currentPkgs = JSON.parse(localStorage.getItem('packagesData') || "[]");
+            currentPkgs.forEach(pkg => {
+                // Check if user already owns this package
+                const isOwned = user.activePackages && user.activePackages.find(p => p.id === pkg.id);
+                if(!isOwned) {
+                    html += `
+                    <div class="pkg-container">
+                        <h3>${pkg.name}</h3>
+                        <p>Daily Income: <b>${pkg.daily} TK</b></p>
+                        <p>Duration: <b>${pkg.days} Days</b></p>
+                        <span class="price-box">${pkg.price} TK</span>
+                        <button class="action-btn" style="margin:0;" onclick="buyPackage(${pkg.id})">BUY NOW</button>
+                    </div>`;
+                }
+            });
+            html += `</div>`;
+
+            // History Section
+            html += `<h4 style="margin-top:30px; text-align:center;">PURCHASE HISTORY</h4><div id="pkg-history">`;
+            if(!user.activePackages || user.activePackages.length === 0) {
+                html += `<p style="text-align:center; color:gray; font-size:12px;">No active package.</p>`;
+            } else {
+                user.activePackages.forEach(p => {
+                    html += `
+                    <div class="pkg-history-card">
+                        <div style="display:flex; justify-content:space-between;"><b>${p.name}</b><span style="color:var(--success); font-size:10px;">ACTIVE</span></div>
+                        <p style="margin:5px 0 0 0; font-size:11px; color:var(--text-gray);">Daily: ${p.daily} TK | Collected: ${p.daysClaimed}/${p.days} Days</p>
+                    </div>`;
+                });
+            }
+            html += `</div>`;
+            content.innerHTML = html;
+        }
+
+        function buyPackage(pkgId) {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const uIdx = users.findIndex(u => u.phone === phone);
+            const currentPkgs = JSON.parse(localStorage.getItem('packagesData') || "[]");
+            const pkg = currentPkgs.find(p => p.id === pkgId);
+
+            if(users[uIdx].balance < pkg.price) {
+                showNotice('Error!', 'আপনার ব্যালেন্সে পর্যাপ্ত টাকা নেই!', 'fa-circle-xmark', 'var(--danger)');
+                return;
+            }
+
+            startProcessing(2000, "PROCESSING...", () => {
+                users[uIdx].balance -= pkg.price;
+                if(!users[uIdx].activePackages) users[uIdx].activePackages = [];
+                
+                users[uIdx].activePackages.push({
+                    ...pkg,
+                    lastIncomeTime: Date.now(), // First income countdown starts now
+                    daysClaimed: 0
+                });
+
+                localStorage.setItem('users', JSON.stringify(users));
+                updateBalanceUI();
+                showNotice('Success!', pkg.name + ' কেনা সফল হয়েছে!', 'fa-circle-check', 'var(--success)');
+                renderPackageUI(users[uIdx]);
+            });
+        }
+
+        // --- AUTOMATIC INCOME LOGIC ---
+        function processAutomaticIncome() {
+            const phone = localStorage.getItem('currentUser');
+            if(!phone) return;
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const uIdx = users.findIndex(u => u.phone === phone);
+            const user = users[uIdx];
+            if(!user.activePackages) return;
+
+            let updated = false;
+            const now = Date.now();
+            const OneDayMS = 24 * 60 * 60 * 1000;
+
+            user.activePackages = user.activePackages.filter(pkg => {
+                const diff = now - pkg.lastIncomeTime;
+                if(diff >= OneDayMS) {
+                    const daysToCollect = Math.floor(diff / OneDayMS);
+                    const remainingLimit = pkg.days - pkg.daysClaimed;
+                    const claimable = Math.min(daysToCollect, remainingLimit);
+
+                    if(claimable > 0) {
+                        user.balance += (pkg.daily * claimable);
+                        pkg.daysClaimed += claimable;
+                        pkg.lastIncomeTime = pkg.lastIncomeTime + (claimable * OneDayMS);
+                        updated = true;
+                    }
+                }
+                // Automatically remove package if all days are claimed
+                return pkg.daysClaimed < pkg.days;
+            });
+
+            if(updated) {
+                localStorage.setItem('users', JSON.stringify(users));
+                updateBalanceUI();
+            }
+        }
+
+        // --- ADS VIEW SYSTEM ---
+        function renderAdsView() {
+            const content = document.getElementById('page-content');
+            content.innerHTML = `<div class="ads-view-card"><div class="ads-icon-box"><i class="fa-solid fa-play"></i></div><h3 style="margin:0; color:white;">Watch & Earn</h3><p style="font-size:12px; color:var(--text-gray); margin-bottom:20px;">অ্যাড দেখে প্রতিদিন ইনকাম করুন</p><div id="ads-main-container"><p id="ads-status" style="font-size:13px; color:var(--primary);">অ্যাড লোড হতে ৩ সেকেন্ড অপেক্ষা করুন...</p><div class="ads-timer-circle"><span id="ads-timer">3</span></div><div class="reward-badge">Reward: 1.00 TK</div><button id="ads-watch-btn" class="action-btn" style="display:none; margin-top:20px; box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);" onclick="watchAdNow()">WATCH AD NOW</button></div></div>`;
+            let time = 3; const timer = document.getElementById('ads-timer');
+            const interval = setInterval(() => {
+                time--; if(timer) timer.innerText = time;
+                if(time <= 0) { clearInterval(interval); if(document.getElementById('ads-status')) document.getElementById('ads-status').innerText = "অ্যাড প্রস্তুত! নিচে ক্লিক করুন।"; if(document.getElementById('ads-watch-btn')) document.getElementById('ads-watch-btn').style.display = 'block'; if(timer) timer.parentElement.style.display = 'none'; }
+            }, 1000);
+        }
+
+        function watchAdNow() {
+            window.open('https://www.highrevenuenetwork.com/k26pzy6b?key=10991249', '_blank');
+            const mainBox = document.getElementById('ads-main-container');
+            mainBox.innerHTML = `<p style="font-size:13px; color:var(--danger);">ভেরিফাই হতে ১৫ সেকেন্ড অপেক্ষা করুন...</p><div class="ads-timer-circle" style="border-top-color:var(--danger);"><span id="verify-timer" style="color:var(--danger);">15</span></div><p style="font-size:11px; color:var(--text-gray);">অ্যাড কেটে ফিরে আসবেন না, অপেক্ষা করুন</p>`;
+            let time = 15; const interval = setInterval(() => {
+                time--; if(document.getElementById('verify-timer')) document.getElementById('verify-timer').innerText = time;
+                if(time <= 0) { clearInterval(interval); rewardAdsUser(); }
+            }, 1000);
+        }
+
+        function rewardAdsUser() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            users[idx].balance += 1.00; localStorage.setItem('users', JSON.stringify(users));
+            updateBalanceUI(); showNotice('Success!', 'আপনি ১.০০ টাকা রিওয়ার্ড পেয়েছেন!'); closePage();
+        }
+
+        function claimSalary() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            startProcessing(2000, "CLAIMING SALARY...", () => {
+                users[idx].balance += 80; users[idx].salaryClaimed = true;
+                localStorage.setItem('users', JSON.stringify(users)); updateBalanceUI();
+                showNotice('Success', 'টিম স্যালারি ৮০ টাকা বোনাস যোগ হয়েছে!'); openPage('Salary');
+            });
+        }
+
+        function renderReferral(user, users) {
+            const myRefs = users.filter(u => u.referredBy === user.phone);
+            const totalBonus = (user.claimedRefs ? user.claimedRefs.length : 0) * 30;
+            const refLink = "https://t.me/DigitalSuccessBot?start=" + user.phone;
+            let contentArea = document.getElementById('page-content');
+            contentArea.innerHTML = `<div class="ref-stat-box"><div class="ref-stat-card"><b>${myRefs.length}</b><span>মোট রেফার</span></div><div class="ref-stat-card"><b>${totalBonus.toFixed(2)}</b><span>রেফার বোনাস</span></div></div><div class="withdraw-card" style="margin-bottom:15px;"><p style="font-size:12px; margin-bottom:5px;">রেফার লিংক:</p><div style="display:flex; gap:10px;"><input type="text" value="${refLink}" readonly class="gs-input-box" style="margin:0; padding:10px; font-size:11px;"><button onclick="copyText('${refLink}')" style="background:var(--primary); color:black; border:none; border-radius:10px; padding:0 15px; font-weight:700;">COPY</button></div></div><div id="bonus-claim-area"></div>`;
+            const claimArea = document.getElementById('bonus-claim-area');
+            myRefs.forEach(ref => {
+                const alreadyClaimed = user.claimedRefs && user.claimedRefs.includes(ref.phone);
+                if(ref.totalEarned >= 50 && !alreadyClaimed) {
+                    const card = document.createElement('div'); card.className = 'job-card';
+                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div><p style="margin:0;">বন্ধু: ${ref.phone}</p><small style="color:var(--success);">শর্ত পূরণ হয়েছে!</small></div><button class="action-btn" style="width:auto; padding:8px 15px; margin:0; background:var(--success);" onclick="claimReferralBonus('${ref.phone}')">CLAIM 30 TK</button></div>`;
+                    claimArea.appendChild(card);
+                }
+            });
+        }
+
+        function claimReferralBonus(friendPhone) {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            startProcessing(2000, "CLAIMING BONUS...", () => {
+                users[idx].balance += 30; if(!users[idx].claimedRefs) users[idx].claimedRefs = [];
+                users[idx].claimedRefs.push(friendPhone); localStorage.setItem('users', JSON.stringify(users));
+                updateBalanceUI(); showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!'); renderReferral(users[idx], users);
+            });
+        }
+
+        function publishJob() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            if(users[idx].balance < 50) { showNotice('Low Balance', 'জব পোস্ট করতে ৫০ টাকা লাগে।', 'fa-circle-xmark', 'var(--danger)'); return; }
+            const title = document.getElementById('j_title').value; const reward = parseFloat(document.getElementById('j_reward').value);
+            const link = document.getElementById('j_link').value; const desc = document.getElementById('j_desc').value;
+            if(!title || isNaN(reward) || !link || !desc) { tg.showAlert("সব তথ্য দিন!"); return; }
+            startProcessing(2000, "PUBLISHING...", () => {
+                users[idx].balance -= 50; localStorage.setItem('users', JSON.stringify(users));
+                let jobs = JSON.parse(localStorage.getItem('all_jobs') || "[]");
+                jobs.unshift({ id: Date.now(), owner: phone, title, reward, link, desc });
+                localStorage.setItem('all_jobs', JSON.stringify(jobs)); updateBalanceUI();
+                showNotice('Success', 'জব পাবলিশ হয়েছে!'); openPage('My Job');
+            });
+        }
+
+        function viewJob(id) {
+            const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === id);
+            currentJobProofBase64 = ""; document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><h3>${job.title}</h3><p>রিওয়ার্ড: <b>${job.reward} TK</b></p><div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; font-size:12px; margin:10px 0;">${job.desc}</div><a href="${job.link}" target="_blank" style="color:var(--primary); display:block; margin:10px 0;">কাজের লিংক: ${job.link}</a><hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;"><p style="font-size:12px;">কাজের স্ক্রিনশট প্রুফ দিন:</p><input type="file" id="proof_file" accept="image/*" style="display:none;" onchange="previewProof(event)"><button class="action-btn" style="background:#4b5563;" onclick="document.getElementById('proof_file').click()"><i class="fa fa-image"></i> গ্যালারি থেকে ছবি নিন</button><div id="proof_preview_container"></div><button class="action-btn" style="margin-top:20px;" onclick="submitWork(${job.id})">SUBMIT PROOF</button></div>`;
+        }
+
+        function previewProof(event) {
+            const file = event.target.files[0]; const reader = new FileReader();
+            reader.onload = function(e) { currentJobProofBase64 = e.target.result; document.getElementById('proof_preview_container').innerHTML = `<img src="${currentJobProofBase64}" class="proof-preview-img">`; };
+            reader.readAsDataURL(file);
+        }
+
+        function submitWork(jobId) {
+            if(!currentJobProofBase64) { tg.showAlert("স্ক্রিনশট সিলেক্ট করুন!"); return; }
+            const phone = localStorage.getItem('currentUser');
+            startProcessing(2000, "SUBMITTING...", () => {
+                let subs = JSON.parse(localStorage.getItem('subs') || "[]");
+                subs.push({ subId: Date.now(), jobId, worker: phone, proofImg: currentJobProofBase64, status: 'Pending' });
+                localStorage.setItem('subs', JSON.stringify(subs)); showNotice('Submitted', 'আপনার কাজ জমা হয়েছে।'); openPage('Microjob');
+            });
+        }
+
+        function manageSubs(jobId) {
+            const subs = JSON.parse(localStorage.getItem('subs') || "[]").filter(s => s.jobId === jobId && s.status === 'Pending');
+            const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
+            const content = document.getElementById('page-content'); content.innerHTML = `<h3>Works: ${job.title}</h3>`;
+            if(subs.length === 0) content.innerHTML += '<p>No pending work.</p>';
+            subs.forEach(s => {
+                const div = document.createElement('div'); div.className = 'proof-item';
+                div.innerHTML = `<p style="font-size:11px;"><b>Worker:</b> ${s.worker}</p><img src="${s.proofImg}" class="proof-preview-img" onclick="window.open(this.src)" style="cursor:pointer; height:auto; max-height:200px;"><div style="display:flex; gap:10px; margin-top:10px;"><button class="action-btn" style="background:var(--success); flex:1" onclick="approve(${s.subId}, ${jobId})">APPROVE</button><button class="action-btn" style="background:var(--danger); flex:1" onclick="reject(${s.subId}, ${jobId})">REJECT</button></div>`;
+                content.appendChild(div);
+            });
+        }
+
+        function approve(subId, jobId) {
+            const ownerPhone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            let subs = JSON.parse(localStorage.getItem('subs') || "[]");
+            const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
+            const sIdx = subs.findIndex(s => s.subId === subId);
+            const ownerIdx = users.findIndex(u => u.phone === ownerPhone);
+            const workerIdx = users.findIndex(u => u.phone === subs[sIdx].worker);
+            if(users[ownerIdx].balance < job.reward) { showNotice('Low Balance', 'আপনার ব্যালেন্সে রিওয়ার্ড দেওয়ার মতো পর্যাপ্ত টাকা নেই!', 'fa-circle-xmark', 'var(--danger)'); return; }
+            startProcessing(1500, "PAYING...", () => {
+                users[ownerIdx].balance -= job.reward; users[workerIdx].balance += job.reward;
+                users[workerIdx].totalEarned = (users[workerIdx].totalEarned || 0) + job.reward;
+                subs[sIdx].status = 'Approved'; localStorage.setItem('users', JSON.stringify(users));
+                localStorage.setItem('subs', JSON.stringify(subs)); updateBalanceUI(); manageSubs(jobId);
+            });
+        }
+
+        function reject(subId, jobId) {
+            let subs = JSON.parse(localStorage.getItem('subs') || "[]");
+            subs.find(s => s.subId === subId).status = 'Rejected'; localStorage.setItem('subs', JSON.stringify(subs)); manageSubs(jobId);
+        }
+
+        function logout() { localStorage.removeItem('currentUser'); location.reload(); }
+        function renderProfileOptions(user) {
+            document.getElementById('page-content').innerHTML = `
+            <div class="withdraw-card" style="text-align:center;"><div style="width:70px; height:70px; background:var(--accent); border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:30px;">👤</div>
+                <h3>My Profile</h3><p style="font-size:12px; color:gray; margin-bottom:20px;">Welcome back, ${user.phone}</p>
+                <button class="action-btn" style="margin-bottom:10px;" onclick="renderPrivacyPolicy()">PRIVACY POLICY</button>
+                <button class="action-btn" style="margin-bottom:10px; background:var(--success);" onclick="openPage('Withdraw')">WITHDRAW</button>
+                <button class="action-btn" style="margin-bottom:10px; background:var(--secondary);" onclick="openPage('Deposit')">DEPOSIT</button>
+                <button class="auth-btn" style="background:var(--danger); margin-top:10px;" onclick="logout()">LOGOUT</button></div>`;
+        }
+
+        function renderPrivacyPolicy() {
+            const phone = localStorage.getItem('currentUser'); let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const user = users.find(u => u.phone === phone);
+            document.getElementById('page-content').innerHTML = `
+            <div class="withdraw-card"><h3 style="text-align:center; color:var(--primary);">Privacy Policy</h3>
+                <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:15px; margin-bottom:20px; font-size:13px; line-height:1.6;">
+                    <p><b>Email:</b> ${user.email}</p><p><b>Phone:</b> ${user.phone}</p><p><b>Status:</b> Active Account</p></div>
+                <h4 style="text-align:center;">Change Password</h4><div class="input-group"><i class="fa fa-lock" style="top:18px;"></i><input type="password" id="new_pass" class="gs-input-box" placeholder="নতুন পাসওয়ার্ড দিন"></div>
+                <button class="action-btn" onclick="updatePassword()">SUBMIT NEW PASSWORD</button>
+                <button class="action-btn" style="background:gray; margin-top:10px;" onclick="openPage('Profile')">BACK</button></div>`;
+        }
+
+        function updatePassword() {
+            const newPass = document.getElementById('new_pass').value; if(newPass.length < 4) { tg.showAlert("পাসওয়ার্ড অন্তত ৪ অক্ষরের দিন!"); return; }
+            const phone = localStorage.getItem('currentUser'); let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            startProcessing(2500, "UPDATING PASSWORD...", () => {
+                users[idx].pass = newPass; localStorage.setItem('users', JSON.stringify(users));
+                showNotice('Success!', 'পাসওয়ার্ড পরিবর্তন সফল। নতুন করে লগইন করুন।', 'fa-circle-check', 'var(--primary)'); setTimeout(() => { logout(); }, 2000);
+            });
+        }
+
+        function renderTopupInitial() {
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card" style="text-align:center;"><button class="action-btn" style="height:70px; font-size:18px; border-radius:15px; background: linear-gradient(135deg, var(--accent), #4338ca);" onclick="renderDiamondGrid()">💎 UID TOPUP</button></div><div id="tp_history" style="margin-top:20px;"></div>`;
+            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('tp_'+phone) || "[]");
+            if(history.length > 0) document.getElementById('tp_history').innerHTML = '<h4>History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:15px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.05); font-size:11px;"><div><b>💎 ${h.dm}</b></div><div style="color:gray;">UID: ${h.uid} | Price: ${h.price} TK</div><span style="color:#ffc107;">Status: ${h.status}</span></div>`).join('');
+        }
+
+        function renderDiamondGrid() {
+            const pkgs = [["25 Diamond", 20], ["50 Diamond", 35], ["115 Diamond", 79], ["240 Diamond", 158], ["355 Diamond", 237], ["505 Diamond", 336], ["610 Diamond", 400], ["850 Diamond", 558], ["1090 Diamond", 716], ["1240 Diamond", 800], ["1720 Diamond", 1116], ["2090 Diamond", 1358], ["2530 Diamond", 1610], ["5060 Diamond", 3220], ["10120 Diamond", 6440], ["Weekly", 158], ["Monthly", 790]];
+            document.getElementById('page-content').innerHTML = `<div class="tp-grid">${pkgs.map(p => `<div class="tp-box" onclick="askTopupUID('${p[0]}', ${p[1]})"><div class="tp-left"><span class="icon">💎</span><div class="tp-txt"><b>${p[0]}</b><span>Diamond Recharge</span></div></div><div class="tp-price">${p[1]} TK</div></div>`).join('')}</div><button class="action-btn" style="background:gray; margin-top:20px;" onclick="renderTopupInitial()">BACK</button>`;
+        }
+
+        function askTopupUID(dm, price) {
+            selectedDiamondCount = dm; selectedDiamondPrice = price;
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><h3 style="text-align:center; color:var(--primary);">💎 ${dm}</h3><p style="text-align:center; font-size:12px; margin-bottom:20px;">Price: ${price} TK</p><div class="input-group"><i class="fa fa-user" style="top:18px;"></i><input type="number" id="p_uid" class="gs-input-box" placeholder="প্লেয়ার আইডি (UID) লিখুন"></div><button class="action-btn" onclick="confirmTopupOrder()">SUBMIT UID</button></div>`;
+        }
+
+        function confirmTopupOrder() {
+            const uid = document.getElementById('p_uid').value; if(uid.length < 5) { tg.showAlert("সঠিক UID দিন!"); return; }
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card" style="text-align:center;"><h3 style="margin-bottom:10px;">পেমেন্ট করুন</h3><p style="font-size:12px; margin-bottom:20px;">অর্ডার: <b>💎 ${selectedDiamondCount}</b><br>UID: <b>${uid}</b><br>মোট: <b>${selectedDiamondPrice} TK</b></p><button class="action-btn" style="background:var(--success);" onclick="payTopupWallet('${uid}')">💳 PAY FROM WALLET</button><button class="action-btn" style="background:var(--secondary);" onclick="openPage('Deposit')">➕ DEPOSIT MONEY</button><button class="action-btn" style="background:gray;" onclick="renderDiamondGrid()">CANCEL</button></div>`;
+        }
+
+        function payTopupWallet(uid) {
+            const phone = localStorage.getItem('currentUser'); let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone); if(users[idx].balance < selectedDiamondPrice) { showNotice('Low Balance!', 'ওয়ালেটে টাকা নেই। ডিপোজিট করুন।', 'fa-circle-xmark', 'var(--danger)'); return; }
+            startProcessing(2000, "VERIFYING PAYMENT...", () => {
+                users[idx].balance -= selectedDiamondPrice; localStorage.setItem('users', JSON.stringify(users));
+                let history = JSON.parse(localStorage.getItem('tp_'+phone) || "[]");
+                history.unshift({ dm: selectedDiamondCount, uid: uid, price: selectedDiamondPrice, status: 'Pending', date: new Date().toLocaleString() });
+                localStorage.setItem('tp_'+phone, JSON.stringify(history)); updateBalanceUI(); showNotice('Success!', 'আপনার অর্ডার পেন্ডিংয়ে আছে।', 'fa-circle-check', 'var(--primary)'); renderTopupInitial();
+            });
+        }
+
+        function renderGmailSell(user) {
+            const note = localStorage.getItem('gmail_sell_notice') || '১. জিমেইল অবশ্যই ফ্রেশ হতে হবে।\n২. পাসওয়ার্ড সঠিক হতে হবে।';
+            const sysPass = localStorage.getItem('gmail_sell_sys_pass') || 'PASS@123';
+            
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card" style="border: 1px solid rgba(0, 210, 255, 0.2); background: linear-gradient(180deg, #111827 0%, #000000 100%);"><button class="action-btn" style="background: var(--accent); margin-bottom: 15px;" onclick="showNotice('Gmail Sell Notice', \`${note}\`, 'fa-bullhorn', 'white')">📢 NOTICE</button><div style="display: flex; gap: 10px; margin-bottom: 20px;"><div style="flex: 2; background: rgba(0,210,255,0.05); padding: 10px; border-radius: 12px; border: 1px dashed var(--primary); text-align: center;"><small style="color: gray; font-size: 9px; display: block;">অবশ্যই এই পাসওয়ার্ডটি ব্যবহার করবে</small><b style="color: var(--primary); font-size: 15px; letter-spacing: 1px;">${sysPass}</b><button onclick="copyText('${sysPass}')" style="background: none; border: none; color: white; cursor: pointer; margin-left: 5px;"><i class="fa fa-copy" style="font-size: 12px;"></i></button></div><a href="https://t.me/YourVideoLink" target="_blank" style="flex: 1; background: var(--danger); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none; color: white; font-size: 10px; font-weight: 700; text-align: center; padding: 5px; box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);"><i class="fa fa-play-circle" style="font-size: 18px; margin-bottom: 2px;"></i> ভিডিও দেখুন</a></div><div class="input-group"><i class="fa fa-envelope" style="top: 18px;"></i><input type="text" id="gs_gmail" class="gs-input-box" placeholder="জিমেইল লিখুন"></div><div class="input-group" style="margin-top: 15px;"><i class="fa fa-key" style="top: 18px;"></i><input type="text" id="gs_pass" class="gs-input-box" placeholder="পাসওয়ার্ড লিখুন"></div><button class="action-btn" style="margin-top: 25px; height: 55px;" onclick="submitGmailSell()">SUBMIT GMAIL</button></div><div id="gs_history" style="margin-top:25px;"></div>`;
+            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('gs_'+phone) || "[]");
+            if(history.length > 0) document.getElementById('gs_history').innerHTML = '<h4>History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:18px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.05); font-size:11px;"><div><b>${h.gmail}</b></div><div style="color:gray;">Pass: ${h.pass} | Status: <span style="color:#ffc107;">${h.status}</span></div></div>`).join('');
+        }
+
+        function submitGmailSell() {
+            const gmail = document.getElementById('gs_gmail').value.trim(); const pass = document.getElementById('gs_pass').value.trim(); const phone = localStorage.getItem('currentUser');
+            if(!gmail || !pass) { tg.showAlert("সব তথ্য দিন!"); return; }
+            startProcessing(3000, "SUBMITTING...", () => {
+                let history = JSON.parse(localStorage.getItem('gs_'+phone) || "[]"); history.unshift({ gmail: gmail, pass: pass, status: 'Pending', date: new Date().toLocaleString() }); localStorage.setItem('gs_'+phone, JSON.stringify(history));
+                showNotice('Success!', 'জিমেইল জমা হয়েছে।', 'fa-circle-check', 'var(--primary)'); renderGmailSell();
+            });
+        }
+
+        function renderDepositStep1(user) {
+            const customMethods = JSON.parse(localStorage.getItem('custom_deposit_methods') || "[]");
+            let methodOptions = `<option value="Bkash">Bkash Personal</option><option value="Nagad">Nagad Personal</option>`;
+            customMethods.forEach(m => {
+                methodOptions += `<option value="${m.name}">${m.name} Personal</option>`;
+            });
+
+            depSelectedAmt = 0; depSelectedMethod = "Bkash";
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><div style="text-align:center; margin-bottom:15px;"><small>Current Balance</small><div style="font-size:26px; font-weight:800; color:var(--primary);">${user.balance.toFixed(2)} TK</div></div><p style="font-size:12px;">Choose Method:</p><select id="d_method" onchange="depSelectedMethod = this.value" style="width:100%; padding:14px; border-radius:15px; background:black; color:white; border:1px solid rgba(255,255,255,0.1);">${methodOptions}</select><p style="font-size:12px; margin-top:10px;">Select Amount:</p><div class="amt-grid"><button class="amt-btn" onclick="selectDepAmt(50, this)">50</button><button class="amt-btn" onclick="selectDepAmt(100, this)">100</button><button class="amt-btn" onclick="selectDepAmt(500, this)">500</button><button class="amt-btn" onclick="selectDepAmt(1000, this)">1000</button></div><button class="action-btn" onclick="goToStep2()">CONTINUE</button></div>`;
+        }
+        function selectDepAmt(amt, btn) { depSelectedAmt = amt; document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); }
+        function goToStep2() { if(depSelectedAmt === 0) { tg.showAlert("টাকা সিলেক্ট করুন!"); return; } startProcessing(2000, "PREPARING...", () => { renderDepositStep2(); }); }
+        
+        function renderDepositStep2() {
+            let num = "017XXXXXXXX";
+            if(depSelectedMethod === 'Bkash') num = localStorage.getItem('bkash_num') || "017XXXXXXXX";
+            else if(depSelectedMethod === 'Nagad') num = localStorage.getItem('nagad_num') || "018XXXXXXXX";
+            else {
+                const customMethods = JSON.parse(localStorage.getItem('custom_deposit_methods') || "[]");
+                const found = customMethods.find(m => m.name === depSelectedMethod);
+                if(found) num = found.num;
+            }
+
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><div style="background: rgba(0, 210, 255, 0.05); padding: 15px; border-radius: 15px; border: 1px dashed var(--primary); font-size: 12px;"><p>Send <b>${depSelectedAmt} TK</b> to: <b style="font-size:15px;">${num}</b> <button onclick="copyText('${num}')" style="background:var(--primary); color:black; border:none; padding:2px 8px; border-radius:5px; font-size:10px;">COPY</button></p></div><p style="font-size:11px; margin-top:10px;">Enter 10 Digit TrxID (All Capital):</p><input type="text" id="d_trx" placeholder="Ex: 8N7X2K9L1P" maxlength="10" style="width:100%; padding:14px; border-radius:15px; background:black; color:white; border:1px solid rgba(255,255,255,0.1);"><button class="action-btn" onclick="submitFinalDeposit()">SUBMIT DEPOSIT</button></div><div id="d_history" style="margin-top:20px;"></div>`;
+            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('dh_'+phone) || "[]");
+            if(history.length > 0) document.getElementById('d_history').innerHTML = '<h4>History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:15px; margin-bottom:8px; display:flex; justify-content:space-between; border:1px solid rgba(255,255,255,0.05); font-size:12px;"><div><b>${h.amt} TK</b><br><small>${h.trx}</small></div><span>${h.status}</span></div>`).join('');
+        }
+        function submitFinalDeposit() {
+            const trx = document.getElementById('d_trx').value.trim(); const phone = localStorage.getItem('currentUser');
+            if(trx.length !== 10 || /[a-z]/.test(trx)) { tg.showAlert("১০ ডিজিটের বড় হাতের আইডি দিন!"); return; }
+            startProcessing(2000, "VERIFYING...", () => {
+                let history = JSON.parse(localStorage.getItem('dh_'+phone) || "[]"); history.unshift({ amt: depSelectedAmt, trx: trx, status: 'Pending', date: new Date().toLocaleString() }); localStorage.setItem('dh_'+phone, JSON.stringify(history));
+                showNotice('Submitted!', 'আপনার ডিপোজিট জমা হয়েছে।', 'fa-circle-check', 'var(--primary)'); renderDepositStep2();
+            });
+        }
+
+        function renderWithdraw(user) {
+            const min1 = localStorage.getItem('min_w_1') || 100;
+            const min2 = localStorage.getItem('min_w_2') || 200;
+            const min3 = localStorage.getItem('min_w_3') || 300;
+            const min4 = localStorage.getItem('min_w_4') || 500;
+
+            selectedAmount = 0;
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><div style="text-align:center; margin-bottom:15px;"><small>Available Balance</small><div style="font-size:26px; font-weight:800; color:var(--primary);">${user.balance.toFixed(2)} TK</div></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px;">Select Method:</p><div class="input-group"><i class="fa fa-university" style="top:18px;"></i><select id="w_method" class="gs-input-box" style="appearance: none;"><option value="Bkash Personal">Bkash Personal</option><option value="Nagad Personal">Nagad Personal</option><option value="Rocket Personal">Rocket Personal</option></select></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Receiver Number:</p><div class="input-group"><i class="fa fa-phone" style="top:18px;"></i><input type="number" id="w_num" class="gs-input-box" placeholder="01XXXXXXXXX"></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Select Amount:</p><div class="amt-grid"><button class="amt-btn" onclick="selectAmt(${min1}, this)">${min1}</button><button class="amt-btn" onclick="selectAmt(${min2}, this)">${min2}</button><button class="amt-btn" onclick="selectAmt(${min3}, this)">${min3}</button><button class="amt-btn" onclick="selectAmt(${min4}, this)">${min4}</button></div><div id="calc-box" class="calc-box" style="display:none; margin-top:15px;"><div class="calc-row"><span>Withdrawal Charge (5%)</span><span id="v_charge" style="color:var(--danger);">0.00</span></div><div class="calc-row" style="font-weight:700; border-top:1px solid rgba(255,255,255,0.05); padding-top:5px; margin-top:5px;"><span>Total Deduction</span><span id="v_total" style="color:var(--primary);">0.00</span></div></div><button class="action-btn" style="margin-top: 20px; height: 55px;" onclick="submitWithdraw()">CONFIRM WITHDRAW</button></div><div id="w_history" style="margin-top:25px;"></div>`;
+            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]");
+            if(history.length > 0) document.getElementById('w_history').innerHTML = '<h4>Withdraw History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:15px; margin-bottom:8px; display:flex; justify-content:space-between; border:1px solid rgba(255,255,255,0.05); font-size:12px;"><div><b>${h.amt} TK</b><br><small>${h.method}</small></div><span>${h.status}</span></div>`).join('');
+        }
+        function selectAmt(amt, btn) { selectedAmount = amt; document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); document.getElementById('calc-box').style.display = 'block'; document.getElementById('v_charge').innerText = (amt * 0.05).toFixed(2) + " TK"; document.getElementById('v_total').innerText = (amt + (amt * 0.05)).toFixed(2) + " TK"; }
+        
+        function submitWithdraw() {
+            const num = document.getElementById('w_num').value; 
+            const method = document.getElementById('w_method').value; 
+            const phone = localStorage.getItem('currentUser'); 
+            let users = JSON.parse(localStorage.getItem('users') || "[]"); 
+            const idx = users.findIndex(u => u.phone === phone); 
+            const total = selectedAmount + (selectedAmount * 0.05);
+            
+            if(num.length < 11 || selectedAmount === 0) { tg.showAlert("সঠিক তথ্য দিন!"); return; }
+            if(users[idx].balance < total) { showNotice('Low Balance!', 'ব্যালেন্স নেই।', 'fa-circle-xmark', 'var(--danger)'); return; }
+            
+            startProcessing(2000, "PROCESSING...", () => {
+                users[idx].balance -= total; 
+                localStorage.setItem('users', JSON.stringify(users)); 
+                let history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]"); 
+                // FIXED: Adding 'num' here so Admin Panel can see it!
+                history.unshift({ 
+                    amt: selectedAmount, 
+                    method: method, 
+                    num: num, 
+                    status: 'Pending', 
+                    date: new Date().toLocaleDateString() 
+                }); 
+                localStorage.setItem('wh_'+phone, JSON.stringify(history)); 
+                updateBalanceUI(); 
+                renderWithdraw(users[idx]);
+            });
+        }
+
+        window.onload = () => { 
+            if(localStorage.getItem('currentUser')) { 
+                checkSalaryCycleReset(); showMainApp(); 
+            } 
+        }
+    </script>
+</body>
+</html>
