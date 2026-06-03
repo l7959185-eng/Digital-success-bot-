@@ -296,7 +296,24 @@
     <!-- নোটিশ মোডাল -->
     <div id="notice-overlay"><div class="notice-card"><i id="notice-icon" class="fa-solid fa-circle-check" style="font-size: 45px; margin-bottom: 15px;"></i><h3 id="notice-title" style="color: white; margin: 0;">Success!</h3><p id="notice-msg" style="color: #94a3b8; font-size: 14px; margin: 15px 0;"></p><button class="auth-btn" onclick="hideNotice()">OK, UNDERSTOOD</button></div></div>
 
-    <script>
+    <script>299: <script>
+      // এখানে কোডটি পেস্ট করুন
+      const firebaseConfig = {
+        apiKey: "আপনার_এপিআই_কি",
+        authDomain: "আপনার_প্রজেক্ট_আইডি.firebaseapp.com",
+        databaseURL: "আপনার_ডাটাবেস_ইউআরএল",
+        projectId: "আপনার_প্রজেক্ট_আইডি",
+        storageBucket: "আপনার_প্রজেক্ট_আইডি.appspot.com",
+        messagingSenderId: "আপনার_সেন্ডার_আইডি",
+        appId: "আপনার_অ্যাপ_আইডি"
+      };
+
+      // ফায়ারবেস ইনিশিয়ালাইজ করা
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database(); 
+
+300:  const tg = window.Telegram.WebApp;
+301:  tg.expand();
         const tg = window.Telegram.WebApp;
         tg.expand();
 
