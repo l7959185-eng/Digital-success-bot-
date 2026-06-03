@@ -1000,33 +1000,28 @@ async function claimSalary() {
             alert("Error: " + e.message);
         }
     });
-}
-            if(num.length < 11 || selectedAmount === 0) { tg.showAlert("সঠিক তথ্য দিন!"); return; }
-            if(users[idx].balance < total) { showNotice('Low Balance!', 'ব্যালেন্স নেই।', 'fa-circle-xmark', 'var(--danger)'); return; }
+
             
-            startProcessing(2000, "PROCESSING...", () => {
-                users[idx].balance -= total; 
-                localStorage.setItem('users', JSON.stringify(users)); 
-                let history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]"); 
-                // FIXED: Adding 'num' here so Admin Panel can see it!
-                history.unshift({ 
-                    amt: selectedAmount, 
-                    method: method, 
-                    num: num, 
-                    status: 'Pending', 
-                    date: new Date().toLocaleDateString() 
-                }); 
-                localStorage.setItem('wh_'+phone, JSON.stringify(history)); 
-                updateBalanceUI(); 
-                renderWithdraw(users[idx]);
-            });
-        }
 
         window.onload = () => { 
             if(localStorage.getItem('currentUser')) { 
                 checkSalaryCycleReset(); showMainApp(); 
             } 
-        }
+        }// বাটনগুলো সচল করার জন্য এই অংশটি অবশ্যই লাগবে
+window.handleAuth = handleAuth; 
+window.toggleAuth = toggleAuth;
+window.rewardAdsUser = rewardAdsUser;
+window.claimSalary = claimSalary;
+window.watchAdNow = watchAdNow;
+window.submitWithdraw = submitWithdraw;
+window.updatePassword = updatePassword;
+window.openPage = openPage;
+window.logout = logout;
+window.showMainApp = showMainApp;
+window.updateBalanceUI = updateBalanceUI;
+window.claimReferralBonus = claimReferralBonus;
+window.publishJob = publishJob;
+window.renderReferral = renderReferral;
     </script>
 </body>
 </html>
