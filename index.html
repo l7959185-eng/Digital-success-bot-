@@ -645,15 +645,27 @@ if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2)
                 if(time <= 0) { clearInterval(interval); rewardAdsUser(); }
             }, 1000);
         }
+// লাইন ৬৪৯ থেকে ৬৫৫ পর্যন্ত মুছে এই কোডটি বসান
+async function rewardAdsUser() {
+    const phone = localStorage.getItem('currentUser'); // ফোন নম্বরটি আইডি হিসেবে ব্যবহার হবে
+    if (!phone) return;
 
-        function rewardAdsUser() {
-            const phone = localStorage.getItem('currentUser');
-            let users = JSON.parse(localStorage.getItem('users') || "[]");
-            const idx = users.findIndex(u => u.phone === phone);
-            users[idx].balance += 1.00; localStorage.setItem('users', JSON.stringify(users));
-            updateBalanceUI(); showNotice('Success!', 'আপনি ১.০০ টাকা রিওয়ার্ড পেয়েছেন!'); closePage();
-        }
+    const userRef = doc(db, "users", phone);
 
+    try {
+        // সরাসরি ফায়ারবেসে ব্যালেন্স ১ টাকা বাড়িয়ে দিবে
+        await updateDoc(userRef, {
+            balance: increment(1.00)
+        });
+
+        // UI আপডেট করার জন্য
+        updateBalanceUI(); 
+        showNotice('Success!', 'আপনি ১.০০ টাকা রিওয়ার্ড পেয়েছেন!');
+    } catch (error) {
+        console.error("Error updating rewards: ", error);
+    }
+}
+        
         function claimSalary() {
             const phone = localStorage.getItem('currentUser');
             let users = JSON.parse(localStorage.getItem('users') || "[]");
