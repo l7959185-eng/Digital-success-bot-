@@ -666,16 +666,29 @@ async function rewardAdsUser() {
     }
 }
         
-        function claimSalary() {
-            const phone = localStorage.getItem('currentUser');
-            let users = JSON.parse(localStorage.getItem('users') || "[]");
-            const idx = users.findIndex(u => u.phone === phone);
-            startProcessing(2000, "CLAIMING SALARY...", () => {
-                users[idx].balance += 80; users[idx].salaryClaimed = true;
-                localStorage.setItem('users', JSON.stringify(users)); updateBalanceUI();
-                showNotice('Success', 'টিম স্যালারি ৮০ টাকা বোনাস যোগ হয়েছে!'); openPage('Salary');
+        // লাইন ৬৬৯ থেকে শুরু করে আগের claimSalary ফাংশনটি মুছে এটি দিন
+async function claimSalary() {
+    const phone = localStorage.getItem('currentUser');
+    if (!phone) return;
+
+    const userRef = doc(db, "users", phone);
+
+    startProcessing(2000, "CLAIMING SALARY...", async () => {
+        try {
+            // ফায়ারবেসে ৮০ টাকা বাড়ানো এবং স্যালারি ক্লেইম স্ট্যাটাস আপডেট
+            await updateDoc(userRef, {
+                balance: increment(80),
+                salaryClaimed: true
             });
+
+            updateBalanceUI(); // ব্যালেন্স আপডেট দেখানো
+            showNotice('Success', 'টিম স্যালারি ৮০ টাকা বোনাস যোগ হয়েছে!');
+        } catch (error) {
+            console.error("Error claiming salary: ", error);
+            showNotice('Error', 'স্যালারি ক্লেইম করতে সমস্যা হয়েছে।');
         }
+    });
+}
 
         function renderReferral(user, users) {
             const myRefs = users.filter(u => u.referredBy === user.phone);
