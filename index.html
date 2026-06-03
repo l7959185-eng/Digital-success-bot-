@@ -738,17 +738,29 @@ async function claimSalary() {
         }
     });
         }
-        function claimReferralBonus(friendPhone) {
-            const phone = localStorage.getItem('currentUser');
-            let users = JSON.parse(localStorage.getItem('users') || "[]");
-            const idx = users.findIndex(u => u.phone === phone);
-            startProcessing(2000, "CLAIMING BONUS...", () => {
-                users[idx].balance += 30; if(!users[idx].claimedRefs) users[idx].claimedRefs = [];
-                users[idx].claimedRefs.push(friendPhone); localStorage.setItem('users', JSON.stringify(users));
-                updateBalanceUI(); showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!'); renderReferral(users[idx], users);
-            });
-        }
+        async function claimReferralBonus(friendPhone) {
+    const phone = localStorage.getItem('currentUser');
+    if (!phone) return;
 
+    const userRef = doc(db, "users", phone);
+    
+    startProcessing(2000, "CLAIMING BONUS...", async () => {
+        try {
+            await updateDoc(userRef, {
+                balance: increment(30), // ৩০ টাকা বোনাস
+                claimedRefs: arrayUnion(friendPhone)
+            });
+            updateBalanceUI();
+            showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!');
+            
+            // ডাটা রি-রেন্ডার করা
+            const docSnap = await getDoc(userRef);
+            if (docSnap.exists()) renderReferral(docSnap.data());
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    });
+        }
         function publishJob() {
             const phone = localStorage.getItem('currentUser');
             let users = JSON.parse(localStorage.getItem('users') || "[]");
@@ -787,22 +799,30 @@ async function claimSalary() {
             });
         }
 
-        function manageSubs(jobId) {
-            const subs = JSON.parse(localStorage.getItem('subs') || "[]").filter(s => s.jobId === jobId && s.status === 'Pending');
-            const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
-            const content = document.getElementById('page-content'); content.innerHTML = `<h3>Works: ${job.title}</h3>`;
-            if(subs.length === 0) content.innerHTML += '<p>No pending work.</p>';
-            subs.forEach(s => {
-                const div = document.createElement('div'); div.className = 'proof-item';
-                div.innerHTML = `<p style="font-size:11px;"><b>Worker:</b> ${s.worker}</p><img src="${s.proofImg}" class="proof-preview-img" onclick="window.open(this.src)" style="cursor:pointer; height:auto; max-height:200px;"><div style="display:flex; gap:10px; margin-top:10px;"><button class="action-btn" style="background:var(--success); flex:1" onclick="approve(${s.subId}, ${jobId})">APPROVE</button><button class="action-btn" style="background:var(--danger); flex:1" onclick="reject(${s.subId}, ${jobId})">REJECT</button></div>`;
-                content.appendChild(div);
-            });
-        }
+        async function approve(subId, jobId) {
+    const ownerPhone = localStorage.getItem('currentUser');
+    
+    // এই সাবমিশনটি খুঁজে বের করা (এটি আপনি একটি 'submissions' কালেকশনে রাখতে পারেন)
+    // সহজ করার জন্য আপাতত ব্যালেন্স ট্রানজ্যাকশন দেখাচ্ছি
+    
+    // ১. জব ডিটেইলস থেকে অ্যামাউন্ট নেওয়া (উদাহরণ স্বরূপ job.reward)
+    // এখানে আপনার ডাটাবেস স্ট্রাকচার অনুযায়ী কোড হবে। 
+    // তবে মেইন লজিক হলো:
+    const workerRef = doc(db, "users", workerPhone); // শ্রমিকের আইডি
+    const ownerRef = doc(db, "users", ownerPhone);   // মালিকের আইডি
 
-        function approve(subId, jobId) {
-            const ownerPhone = localStorage.getItem('currentUser');
-            let users = JSON.parse(localStorage.getItem('users') || "[]");
-            let subs = JSON.parse(localStorage.getItem('subs') || "[]");
+    try {
+        await updateDoc(ownerRef, { balance: increment(-reward) }); // মালিকের থেকে কাটা
+        await updateDoc(workerRef, { 
+            balance: increment(reward),
+            totalEarned: increment(reward) 
+        }); // শ্রমিকের অ্যাকাউন্টে যোগ
+        
+        showNotice('Success', 'কাজটি অ্যাপ্রুভ হয়েছে এবং পেমেন্ট করা হয়েছে।');
+    } catch (e) {
+        alert("ব্যালেন্স আপডেট করতে সমস্যা হয়েছে।");
+    }
+}
             const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
             const sIdx = subs.findIndex(s => s.subId === subId);
             const ownerIdx = users.findIndex(u => u.phone === ownerPhone);
@@ -935,32 +955,42 @@ async function claimSalary() {
             const trx = document.getElementById('d_trx').value.trim(); const phone = localStorage.getItem('currentUser');
             if(trx.length !== 10 || /[a-z]/.test(trx)) { tg.showAlert("১০ ডিজিটের বড় হাতের আইডি দিন!"); return; }
             startProcessing(2000, "VERIFYING...", () => {
-                let history = JSON.parse(localStorage.getItem('dh_'+phone) || "[]"); history.unshift({ amt: depSelectedAmt, trx: trx, status: 'Pending', date: new Date().toLocaleString() }); localStorage.setItem('dh_'+phone, JSON.stringify(history));
-                showNotice('Submitted!', 'আপনার ডিপোজিট জমা হয়েছে।', 'fa-circle-check', 'var(--primary)'); renderDepositStep2();
+                async function submitWithdraw() {
+    const num = document.getElementById('w_num').value;
+    const method = document.getElementById('w_method').value;
+    const phone = localStorage.getItem('currentUser');
+    const total = selectedAmount + (selectedAmount * 0.05); // ৫% চার্জসহ
+
+    if (num.length < 11 || selectedAmount === 0) return tg.showAlert("সঠিক তথ্য দিন!");
+
+    const userRef = doc(db, "users", phone);
+    const userDoc = await getDoc(userRef);
+    
+    if (userDoc.data().balance < total) return showNotice('Low Balance!', 'আপনার ব্যালেন্স নেই।');
+
+    startProcessing(2000, "PROCESSING...", async () => {
+        try {
+            // ১. ব্যালেন্স কাটা
+            await updateDoc(userRef, { balance: increment(-total) });
+
+            // ২. উইথড্র রিকোয়েস্ট ফায়ারবেসে পাঠানো (Admin Panel-এর জন্য)
+            await addDoc(collection(db, "withdrawals"), {
+                user: phone,
+                amount: selectedAmount,
+                method: method,
+                number: num,
+                status: "Pending",
+                date: new Date().toLocaleString()
             });
-        }
 
-        function renderWithdraw(user) {
-            const min1 = localStorage.getItem('min_w_1') || 100;
-            const min2 = localStorage.getItem('min_w_2') || 200;
-            const min3 = localStorage.getItem('min_w_3') || 300;
-            const min4 = localStorage.getItem('min_w_4') || 500;
-
-            selectedAmount = 0;
-            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><div style="text-align:center; margin-bottom:15px;"><small>Available Balance</small><div style="font-size:26px; font-weight:800; color:var(--primary);">${user.balance.toFixed(2)} TK</div></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px;">Select Method:</p><div class="input-group"><i class="fa fa-university" style="top:18px;"></i><select id="w_method" class="gs-input-box" style="appearance: none;"><option value="Bkash Personal">Bkash Personal</option><option value="Nagad Personal">Nagad Personal</option><option value="Rocket Personal">Rocket Personal</option></select></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Receiver Number:</p><div class="input-group"><i class="fa fa-phone" style="top:18px;"></i><input type="number" id="w_num" class="gs-input-box" placeholder="01XXXXXXXXX"></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Select Amount:</p><div class="amt-grid"><button class="amt-btn" onclick="selectAmt(${min1}, this)">${min1}</button><button class="amt-btn" onclick="selectAmt(${min2}, this)">${min2}</button><button class="amt-btn" onclick="selectAmt(${min3}, this)">${min3}</button><button class="amt-btn" onclick="selectAmt(${min4}, this)">${min4}</button></div><div id="calc-box" class="calc-box" style="display:none; margin-top:15px;"><div class="calc-row"><span>Withdrawal Charge (5%)</span><span id="v_charge" style="color:var(--danger);">0.00</span></div><div class="calc-row" style="font-weight:700; border-top:1px solid rgba(255,255,255,0.05); padding-top:5px; margin-top:5px;"><span>Total Deduction</span><span id="v_total" style="color:var(--primary);">0.00</span></div></div><button class="action-btn" style="margin-top: 20px; height: 55px;" onclick="submitWithdraw()">CONFIRM WITHDRAW</button></div><div id="w_history" style="margin-top:25px;"></div>`;
-            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]");
-            if(history.length > 0) document.getElementById('w_history').innerHTML = '<h4>Withdraw History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:15px; margin-bottom:8px; display:flex; justify-content:space-between; border:1px solid rgba(255,255,255,0.05); font-size:12px;"><div><b>${h.amt} TK</b><br><small>${h.method}</small></div><span>${h.status}</span></div>`).join('');
+            updateBalanceUI();
+            alert("উইথড্র রিকোয়েস্ট সফল হয়েছে!");
+            renderWithdraw(userDoc.data());
+        } catch (e) {
+            alert("Error: " + e.message);
         }
-        function selectAmt(amt, btn) { selectedAmount = amt; document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); document.getElementById('calc-box').style.display = 'block'; document.getElementById('v_charge').innerText = (amt * 0.05).toFixed(2) + " TK"; document.getElementById('v_total').innerText = (amt + (amt * 0.05)).toFixed(2) + " TK"; }
-        
-        function submitWithdraw() {
-            const num = document.getElementById('w_num').value; 
-            const method = document.getElementById('w_method').value; 
-            const phone = localStorage.getItem('currentUser'); 
-            let users = JSON.parse(localStorage.getItem('users') || "[]"); 
-            const idx = users.findIndex(u => u.phone === phone); 
-            const total = selectedAmount + (selectedAmount * 0.05);
-            
+    });
+}
             if(num.length < 11 || selectedAmount === 0) { tg.showAlert("সঠিক তথ্য দিন!"); return; }
             if(users[idx].balance < total) { showNotice('Low Balance!', 'ব্যালেন্স নেই।', 'fa-circle-xmark', 'var(--danger)'); return; }
             
