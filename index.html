@@ -8,10 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDK ( মাঝখান দিয়ে যুক্ত করা হয়েছে ) -->
-    <<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <"></script>
+    
 
     <style>
         :root {
@@ -300,20 +297,22 @@
       // এখানে কোডটি পেস্ট করুন
       const firebaseConfig = {
         apiKey: "আপনার_এপিআই_কি",
-        authDomain: "আপনার_প্রজেক্ট_আইডি.firebaseapp.com",
-        databaseURL: "আপনার_ডাটাবেস_ইউআরএল",
-        projectId: "আপনার_প্রজেক্ট_আইডি",
-        storageBucket: "আপনার_প্রজেক্ট_আইডি.appspot.com",
-        messagingSenderId: "আপনার_সেন্ডার_আইডি",
-        appId: "আপনার_অ্যাপ_আইডি"
-      };
+        // ৩০০ থেকে ৩১৩ নম্বর লাইনের জায়গায় এটি পেস্ট করুন
+const firebaseConfig = {
+  apiKey: "AIzaSyDpxQMs771mlSrPI3vaj8yTZFbLah0eCBc",
+  authDomain: "digital-success-bot-f2e8d.firebaseapp.com",
+  projectId: "digital-success-bot-f2e8d",
+  storageBucket: "digital-success-bot-f2e8d.firebasestorage.app",
+  messagingSenderId: "687530951673",
+  appId: "1:687530951673:web:9a4d1dec6b2280edfe7328",
+  measurementId: "G-JY9TEG3XKV"
+};
 
-      // ফায়ারবেস ইনিশিয়ালাইজ করা
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.database(); 
-
-300:  const tg = window.Telegram.WebApp;
-301:  tg.expand();
+// ফায়ারবেস এবং টেলিগ্রাম সেটআপ
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const tg = window.Telegram.WebApp;
+tg.expand();
    
 
         async function checkRealInternet() {
