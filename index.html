@@ -8,7 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    
+    <!-- Firebase SDK ( মাঝখান দিয়ে যুক্ত করা হয়েছে ) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
         :root {
@@ -293,27 +295,9 @@
     <!-- নোটিশ মোডাল -->
     <div id="notice-overlay"><div class="notice-card"><i id="notice-icon" class="fa-solid fa-circle-check" style="font-size: 45px; margin-bottom: 15px;"></i><h3 id="notice-title" style="color: white; margin: 0;">Success!</h3><p id="notice-msg" style="color: #94a3b8; font-size: 14px; margin: 15px 0;"></p><button class="auth-btn" onclick="hideNotice()">OK, UNDERSTOOD</button></div></div>
 
-    <script>299: <script>
-      // এখানে কোডটি পেস্ট করুন
-      const firebaseConfig = {
-        apiKey: "আপনার_এপিআই_কি",
-        // ৩০০ থেকে ৩১৩ নম্বর লাইনের জায়গায় এটি পেস্ট করুন
-const firebaseConfig = {
-  apiKey: "AIzaSyDpxQMs771mlSrPI3vaj8yTZFbLah0eCBc",
-  authDomain: "digital-success-bot-f2e8d.firebaseapp.com",
-  projectId: "digital-success-bot-f2e8d",
-  storageBucket: "digital-success-bot-f2e8d.firebasestorage.app",
-  messagingSenderId: "687530951673",
-  appId: "1:687530951673:web:9a4d1dec6b2280edfe7328",
-  measurementId: "G-JY9TEG3XKV"
-};
-
-// ফায়ারবেস এবং টেলিগ্রাম সেটআপ
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const tg = window.Telegram.WebApp;
-tg.expand();
-   
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
 
         async function checkRealInternet() {
             const overlay = document.getElementById('actual-internet-overlay');
@@ -403,40 +387,20 @@ tg.expand();
             if(phone.length < 11) { tg.showAlert("সঠিক ফোন নাম্বার দিন!"); return; }
             let users = JSON.parse(localStorage.getItem('users') || "[]");
             if(!isLoginMode) {
-            // --- ফায়ারবেস সিস্টেম শুরু ---
-        const userRef = db.ref('users/' + phone);
-
-        userRef.once('value', (snapshot) => {
-            const userData = snapshot.val();
-
-            if (!isLoginMode) { 
-                // নতুন একাউন্ট তৈরি
-                if (userData) {
-                    showNotice('Duplicate!', 'এই নাম্বারে আইডি আছে', 'fa-circle-xmark', 'var(--danger)');
-                } else {
-                    const newUser = {
-                        email: email, phone: phone, pass: pass, balance: 0.00,
-                        referredBy: refBy, // লাইন ৪০৪ এর ভেরিয়েবল
-                        date: new Date().toISOString()
-                    };
-                    userRef.set(newUser).then(() => {
-                        localStorage.setItem('currentUser', phone);
-                        checkSalaryCycleReset();
-                        showMainApp();
-                    });
-                }
-            } else { 
-                // লগইন চেক
-                if (userData && userData.pass === pass) {
-                    localStorage.setItem('currentUser', phone);
-                    checkSalaryCycleReset();
-                    showMainApp();
-                } else {
-                    showNotice('Failed!', 'ভুল পাসওয়ার্ড বা আইডি', 'fa-circle-xmark', 'var(--danger)');
-                }
+                if(users.find(u => u.phone === phone)) { showNotice('Duplicate Number!', 'এই নাম্বারটি আছে।', 'fa-phone-slash', 'var(--danger)'); return; }
+                startProcessing(3000, "CREATING ACCOUNT...", () => { 
+                    users.push({ email, phone, pass, balance: 0.00, referredBy: refBy, totalEarned: 0, claimedRefs: [], salaryClaimed: false, activePackages: [] }); 
+                    localStorage.setItem('users', JSON.stringify(users)); 
+                    localStorage.setItem('currentUser', phone); 
+                    checkSalaryCycleReset(); showMainApp(); 
+                });
+            } else {
+                const user = users.find(u => u.phone === phone && u.pass === pass);
+                if(user) { startProcessing(3000, "SECURE LOGIN...", () => { localStorage.setItem('currentUser', phone); showMainApp(); }); }
+                else { showNotice('Login Failed!', 'ভুল তথ্য।', 'fa-circle-xmark', 'var(--danger)'); }
             }
-        });
-        // --- ফায়ারবেস সিস্টেম শেষ ---
+        }
+
         function startProcessing(time, text, callback) {
             const overlay = document.getElementById('processing-overlay');
             document.getElementById('proc-text').innerText = text;
@@ -453,9 +417,9 @@ tg.expand();
 
         function updateBalanceUI() {
             const phone = localStorage.getItem('currentUser');
-let users = JSON.parse(localStorage.getItem('users') || "[]");
-const user = users.find(u => u.phone === phone);
-if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2);
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const user = users.find(u => u.phone === phone);
+            if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2);
         }
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
@@ -644,133 +608,54 @@ if(user) document.getElementById('home-bal').innerText = user.balance.toFixed(2)
                 if(time <= 0) { clearInterval(interval); rewardAdsUser(); }
             }, 1000);
         }
-// লাইন ৬৪৯ থেকে ৬৫৫ পর্যন্ত মুছে এই কোডটি বসান
-async function rewardAdsUser() {
-    const phone = localStorage.getItem('currentUser'); // ফোন নম্বরটি আইডি হিসেবে ব্যবহার হবে
-    if (!phone) return;
 
-    const userRef = doc(db, "users", phone);
+        function rewardAdsUser() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            users[idx].balance += 1.00; localStorage.setItem('users', JSON.stringify(users));
+            updateBalanceUI(); showNotice('Success!', 'আপনি ১.০০ টাকা রিওয়ার্ড পেয়েছেন!'); closePage();
+        }
 
-    try {
-        // সরাসরি ফায়ারবেসে ব্যালেন্স ১ টাকা বাড়িয়ে দিবে
-        await updateDoc(userRef, {
-            balance: increment(1.00)
-        });
-
-        // UI আপডেট করার জন্য
-        updateBalanceUI(); 
-        showNotice('Success!', 'আপনি ১.০০ টাকা রিওয়ার্ড পেয়েছেন!');
-    } catch (error) {
-        console.error("Error updating rewards: ", error);
-    }
-}
-        
-        // লাইন ৬৬৯ থেকে শুরু করে আগের claimSalary ফাংশনটি মুছে এটি দিন
-async function claimSalary() {
-    const phone = localStorage.getItem('currentUser');
-    if (!phone) return;
-
-    const userRef = doc(db, "users", phone);
-
-    startProcessing(2000, "CLAIMING SALARY...", async () => {
-        try {
-            // ফায়ারবেসে ৮০ টাকা বাড়ানো এবং স্যালারি ক্লেইম স্ট্যাটাস আপডেট
-            await updateDoc(userRef, {
-                balance: increment(80),
-                salaryClaimed: true
+        function claimSalary() {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            startProcessing(2000, "CLAIMING SALARY...", () => {
+                users[idx].balance += 80; users[idx].salaryClaimed = true;
+                localStorage.setItem('users', JSON.stringify(users)); updateBalanceUI();
+                showNotice('Success', 'টিম স্যালারি ৮০ টাকা বোনাস যোগ হয়েছে!'); openPage('Salary');
             });
-
-            updateBalanceUI(); // ব্যালেন্স আপডেট দেখানো
-            showNotice('Success', 'টিম স্যালারি ৮০ টাকা বোনাস যোগ হয়েছে!');
-        } catch (error) {
-            console.error("Error claiming salary: ", error);
-            showNotice('Error', 'স্যালারি ক্লেইম করতে সমস্যা হয়েছে।');
         }
-    });
-}
 
-        async function renderReferral(user) {
-    const phone = user.phone;
-    
-    // ফায়ারবেস থেকে আপনার রেফারালদের খুঁজে বের করা
-    const q = query(collection(db, "users"), where("referredBy", "==", phone));
-    const querySnapshot = await getDocs(q);
-    
-    let myRefs = [];
-    querySnapshot.forEach((doc) => {
-        myRefs.push(doc.data());
-    });
-
-    const refLink = "https://t.me/DigitalSuccessBot?start=" + phone;
-    const contentArea = document.getElementById('page-content');
-    
-    // রেফারেল পেজ রেন্ডার করা
-    contentArea.innerHTML = `
-        <div class="ref-stat-box" style="background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <p>আপনার রেফার লিঙ্ক: <br> <b style="color: var(--primary);">${refLink}</b></p>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <span>মোট রেফার: <b>${myRefs.length} জন</b></span>
-                <span>বোনাস পেয়েছেন: <b>${(user.claimedRefs ? user.claimedRefs.length : 0) * 10} ৳</b></span>
-            </div>
-        </div>
-        <div id="bonus-claim-area"></div>
-    `;
-
-    const claimArea = document.getElementById('bonus-claim-area');
-
-    myRefs.forEach(ref => {
-        const alreadyClaimed = user.claimedRefs && user.claimedRefs.includes(ref.phone);
-        
-        // শর্ত: যদি রেফার করা ইউজার ৫০ টাকার বেশি ইনকাম করে এবং আগে বোনাস না নেওয়া হয়
-        if (ref.totalEarned >= 50 && !alreadyClaimed) {
-            const card = document.createElement('div');
-            card.className = "ref-card";
-            card.style = "background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
-            card.innerHTML = `
-                <div>
-                    <div style="font-weight: bold;">${ref.phone}</div>
-                    <div style="font-size: 12px; color: green;">ইনকাম: ${ref.totalEarned} ৳</div>
-                </div>
-                <button onclick="claimRefBonus('${ref.phone}')" style="background: var(--success); color: white; border: none; padding: 5px 12px; border-radius: 5px; cursor: pointer;">১০ ৳ ক্লেইম</button>
-            `;
-            claimArea.appendChild(card);
-        }
-    });
-        }
-        async function claimReferralBonus(friendPhone) {
-    const phone = localStorage.getItem('currentUser');
-    if (!phone) return;
-
-    const userRef = doc(db, "users", phone);
-    
-    startProcessing(2000, "CLAIMING BONUS...", async () => {
-        try {
-            await updateDoc(userRef, {
-                balance: increment(30), // ৩০ টাকা বোনাস
-                claimedRefs: arrayUnion(friendPhone)
+        function renderReferral(user, users) {
+            const myRefs = users.filter(u => u.referredBy === user.phone);
+            const totalBonus = (user.claimedRefs ? user.claimedRefs.length : 0) * 30;
+            const refLink = "https://t.me/DigitalSuccessBot?start=" + user.phone;
+            let contentArea = document.getElementById('page-content');
+            contentArea.innerHTML = `<div class="ref-stat-box"><div class="ref-stat-card"><b>${myRefs.length}</b><span>মোট রেফার</span></div><div class="ref-stat-card"><b>${totalBonus.toFixed(2)}</b><span>রেফার বোনাস</span></div></div><div class="withdraw-card" style="margin-bottom:15px;"><p style="font-size:12px; margin-bottom:5px;">রেফার লিংক:</p><div style="display:flex; gap:10px;"><input type="text" value="${refLink}" readonly class="gs-input-box" style="margin:0; padding:10px; font-size:11px;"><button onclick="copyText('${refLink}')" style="background:var(--primary); color:black; border:none; border-radius:10px; padding:0 15px; font-weight:700;">COPY</button></div></div><div id="bonus-claim-area"></div>`;
+            const claimArea = document.getElementById('bonus-claim-area');
+            myRefs.forEach(ref => {
+                const alreadyClaimed = user.claimedRefs && user.claimedRefs.includes(ref.phone);
+                if(ref.totalEarned >= 50 && !alreadyClaimed) {
+                    const card = document.createElement('div'); card.className = 'job-card';
+                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;"><div><p style="margin:0;">বন্ধু: ${ref.phone}</p><small style="color:var(--success);">শর্ত পূরণ হয়েছে!</small></div><button class="action-btn" style="width:auto; padding:8px 15px; margin:0; background:var(--success);" onclick="claimReferralBonus('${ref.phone}')">CLAIM 30 TK</button></div>`;
+                    claimArea.appendChild(card);
+                }
             });
-            updateBalanceUI();
-            showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!');
-            
-            // ডাটা রি-রেন্ডার করা
-            const docSnap = await getDoc(userRef);
-            if (docSnap.exists()) renderReferral(docSnap.data());
-        } catch (e) {
-            alert("Error: " + e.message);
         }
-    });
-}
-            updateBalanceUI();
-            showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!');
-            
-            // ডাটা রি-রেন্ডার করা
-            const docSnap = await getDoc(userRef);
-            if (docSnap.exists()) renderReferral(docSnap.data());
-        } catch (e) {
-            alert("Error: " + e.message);
+
+        function claimReferralBonus(friendPhone) {
+            const phone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            const idx = users.findIndex(u => u.phone === phone);
+            startProcessing(2000, "CLAIMING BONUS...", () => {
+                users[idx].balance += 30; if(!users[idx].claimedRefs) users[idx].claimedRefs = [];
+                users[idx].claimedRefs.push(friendPhone); localStorage.setItem('users', JSON.stringify(users));
+                updateBalanceUI(); showNotice('Success', 'রেফার বোনাস ৩০ টাকা যোগ হয়েছে!'); renderReferral(users[idx], users);
+            });
         }
-    });
-        }
+
         function publishJob() {
             const phone = localStorage.getItem('currentUser');
             let users = JSON.parse(localStorage.getItem('users') || "[]");
@@ -809,30 +694,22 @@ async function claimSalary() {
             });
         }
 
-        async function approve(subId, jobId) {
-    const ownerPhone = localStorage.getItem('currentUser');
-    
-    // এই সাবমিশনটি খুঁজে বের করা (এটি আপনি একটি 'submissions' কালেকশনে রাখতে পারেন)
-    // সহজ করার জন্য আপাতত ব্যালেন্স ট্রানজ্যাকশন দেখাচ্ছি
-    
-    // ১. জব ডিটেইলস থেকে অ্যামাউন্ট নেওয়া (উদাহরণ স্বরূপ job.reward)
-    // এখানে আপনার ডাটাবেস স্ট্রাকচার অনুযায়ী কোড হবে। 
-    // তবে মেইন লজিক হলো:
-    const workerRef = doc(db, "users", workerPhone); // শ্রমিকের আইডি
-    const ownerRef = doc(db, "users", ownerPhone);   // মালিকের আইডি
+        function manageSubs(jobId) {
+            const subs = JSON.parse(localStorage.getItem('subs') || "[]").filter(s => s.jobId === jobId && s.status === 'Pending');
+            const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
+            const content = document.getElementById('page-content'); content.innerHTML = `<h3>Works: ${job.title}</h3>`;
+            if(subs.length === 0) content.innerHTML += '<p>No pending work.</p>';
+            subs.forEach(s => {
+                const div = document.createElement('div'); div.className = 'proof-item';
+                div.innerHTML = `<p style="font-size:11px;"><b>Worker:</b> ${s.worker}</p><img src="${s.proofImg}" class="proof-preview-img" onclick="window.open(this.src)" style="cursor:pointer; height:auto; max-height:200px;"><div style="display:flex; gap:10px; margin-top:10px;"><button class="action-btn" style="background:var(--success); flex:1" onclick="approve(${s.subId}, ${jobId})">APPROVE</button><button class="action-btn" style="background:var(--danger); flex:1" onclick="reject(${s.subId}, ${jobId})">REJECT</button></div>`;
+                content.appendChild(div);
+            });
+        }
 
-    try {
-        await updateDoc(ownerRef, { balance: increment(-reward) }); // মালিকের থেকে কাটা
-        await updateDoc(workerRef, { 
-            balance: increment(reward),
-            totalEarned: increment(reward) 
-        }); // শ্রমিকের অ্যাকাউন্টে যোগ
-        
-        showNotice('Success', 'কাজটি অ্যাপ্রুভ হয়েছে এবং পেমেন্ট করা হয়েছে।');
-    } catch (e) {
-        alert("ব্যালেন্স আপডেট করতে সমস্যা হয়েছে।");
-    }
-}
+        function approve(subId, jobId) {
+            const ownerPhone = localStorage.getItem('currentUser');
+            let users = JSON.parse(localStorage.getItem('users') || "[]");
+            let subs = JSON.parse(localStorage.getItem('subs') || "[]");
             const job = JSON.parse(localStorage.getItem('all_jobs') || "[]").find(j => j.id === jobId);
             const sIdx = subs.findIndex(s => s.subId === subId);
             const ownerIdx = users.findIndex(u => u.phone === ownerPhone);
@@ -965,63 +842,58 @@ async function claimSalary() {
             const trx = document.getElementById('d_trx').value.trim(); const phone = localStorage.getItem('currentUser');
             if(trx.length !== 10 || /[a-z]/.test(trx)) { tg.showAlert("১০ ডিজিটের বড় হাতের আইডি দিন!"); return; }
             startProcessing(2000, "VERIFYING...", () => {
-                async function submitWithdraw() {
-    const num = document.getElementById('w_num').value;
-    const method = document.getElementById('w_method').value;
-    const phone = localStorage.getItem('currentUser');
-    const total = selectedAmount + (selectedAmount * 0.05); // ৫% চার্জসহ
-
-    if (num.length < 11 || selectedAmount === 0) return tg.showAlert("সঠিক তথ্য দিন!");
-
-    const userRef = doc(db, "users", phone);
-    const userDoc = await getDoc(userRef);
-    
-    if (userDoc.data().balance < total) return showNotice('Low Balance!', 'আপনার ব্যালেন্স নেই।');
-
-    startProcessing(2000, "PROCESSING...", async () => {
-        try {
-            // ১. ব্যালেন্স কাটা
-            await updateDoc(userRef, { balance: increment(-total) });
-
-            // ২. উইথড্র রিকোয়েস্ট ফায়ারবেসে পাঠানো (Admin Panel-এর জন্য)
-            await addDoc(collection(db, "withdrawals"), {
-                user: phone,
-                amount: selectedAmount,
-                method: method,
-                number: num,
-                status: "Pending",
-                date: new Date().toLocaleString()
+                let history = JSON.parse(localStorage.getItem('dh_'+phone) || "[]"); history.unshift({ amt: depSelectedAmt, trx: trx, status: 'Pending', date: new Date().toLocaleString() }); localStorage.setItem('dh_'+phone, JSON.stringify(history));
+                showNotice('Submitted!', 'আপনার ডিপোজিট জমা হয়েছে।', 'fa-circle-check', 'var(--primary)'); renderDepositStep2();
             });
-
-            updateBalanceUI();
-            alert("উইথড্র রিকোয়েস্ট সফল হয়েছে!");
-            renderWithdraw(userDoc.data());
-        } catch (e) {
-            alert("Error: " + e.message);
         }
-    });
 
+        function renderWithdraw(user) {
+            const min1 = localStorage.getItem('min_w_1') || 100;
+            const min2 = localStorage.getItem('min_w_2') || 200;
+            const min3 = localStorage.getItem('min_w_3') || 300;
+            const min4 = localStorage.getItem('min_w_4') || 500;
+
+            selectedAmount = 0;
+            document.getElementById('page-content').innerHTML = `<div class="withdraw-card"><div style="text-align:center; margin-bottom:15px;"><small>Available Balance</small><div style="font-size:26px; font-weight:800; color:var(--primary);">${user.balance.toFixed(2)} TK</div></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px;">Select Method:</p><div class="input-group"><i class="fa fa-university" style="top:18px;"></i><select id="w_method" class="gs-input-box" style="appearance: none;"><option value="Bkash Personal">Bkash Personal</option><option value="Nagad Personal">Nagad Personal</option><option value="Rocket Personal">Rocket Personal</option></select></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Receiver Number:</p><div class="input-group"><i class="fa fa-phone" style="top:18px;"></i><input type="number" id="w_num" class="gs-input-box" placeholder="01XXXXXXXXX"></div><p style="font-size:12px; color:var(--text-gray); margin-bottom:8px; margin-top:15px;">Select Amount:</p><div class="amt-grid"><button class="amt-btn" onclick="selectAmt(${min1}, this)">${min1}</button><button class="amt-btn" onclick="selectAmt(${min2}, this)">${min2}</button><button class="amt-btn" onclick="selectAmt(${min3}, this)">${min3}</button><button class="amt-btn" onclick="selectAmt(${min4}, this)">${min4}</button></div><div id="calc-box" class="calc-box" style="display:none; margin-top:15px;"><div class="calc-row"><span>Withdrawal Charge (5%)</span><span id="v_charge" style="color:var(--danger);">0.00</span></div><div class="calc-row" style="font-weight:700; border-top:1px solid rgba(255,255,255,0.05); padding-top:5px; margin-top:5px;"><span>Total Deduction</span><span id="v_total" style="color:var(--primary);">0.00</span></div></div><button class="action-btn" style="margin-top: 20px; height: 55px;" onclick="submitWithdraw()">CONFIRM WITHDRAW</button></div><div id="w_history" style="margin-top:25px;"></div>`;
+            const phone = localStorage.getItem('currentUser'); const history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]");
+            if(history.length > 0) document.getElementById('w_history').innerHTML = '<h4>Withdraw History</h4>' + history.map(h => `<div style="background:#111827; padding:12px; border-radius:15px; margin-bottom:8px; display:flex; justify-content:space-between; border:1px solid rgba(255,255,255,0.05); font-size:12px;"><div><b>${h.amt} TK</b><br><small>${h.method}</small></div><span>${h.status}</span></div>`).join('');
+        }
+        function selectAmt(amt, btn) { selectedAmount = amt; document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); document.getElementById('calc-box').style.display = 'block'; document.getElementById('v_charge').innerText = (amt * 0.05).toFixed(2) + " TK"; document.getElementById('v_total').innerText = (amt + (amt * 0.05)).toFixed(2) + " TK"; }
+        
+        function submitWithdraw() {
+            const num = document.getElementById('w_num').value; 
+            const method = document.getElementById('w_method').value; 
+            const phone = localStorage.getItem('currentUser'); 
+            let users = JSON.parse(localStorage.getItem('users') || "[]"); 
+            const idx = users.findIndex(u => u.phone === phone); 
+            const total = selectedAmount + (selectedAmount * 0.05);
             
+            if(num.length < 11 || selectedAmount === 0) { tg.showAlert("সঠিক তথ্য দিন!"); return; }
+            if(users[idx].balance < total) { showNotice('Low Balance!', 'ব্যালেন্স নেই।', 'fa-circle-xmark', 'var(--danger)'); return; }
+            
+            startProcessing(2000, "PROCESSING...", () => {
+                users[idx].balance -= total; 
+                localStorage.setItem('users', JSON.stringify(users)); 
+                let history = JSON.parse(localStorage.getItem('wh_'+phone) || "[]"); 
+                // FIXED: Adding 'num' here so Admin Panel can see it!
+                history.unshift({ 
+                    amt: selectedAmount, 
+                    method: method, 
+                    num: num, 
+                    status: 'Pending', 
+                    date: new Date().toLocaleDateString() 
+                }); 
+                localStorage.setItem('wh_'+phone, JSON.stringify(history)); 
+                updateBalanceUI(); 
+                renderWithdraw(users[idx]);
+            });
+        }
 
         window.onload = () => { 
             if(localStorage.getItem('currentUser')) { 
                 checkSalaryCycleReset(); showMainApp(); 
             } 
-        }// বাটনগুলো সচল করার জন্য এই অংশটি অবশ্যই লাগবে
-window.handleAuth = handleAuth; 
-window.toggleAuth = toggleAuth;
-window.rewardAdsUser = rewardAdsUser;
-window.claimSalary = claimSalary;
-window.watchAdNow = watchAdNow;
-window.submitWithdraw = submitWithdraw;
-window.updatePassword = updatePassword;
-window.openPage = openPage;
-window.logout = logout;
-window.showMainApp = showMainApp;
-window.updateBalanceUI = updateBalanceUI;
-window.claimReferralBonus = claimReferralBonus;
-window.publishJob = publishJob;
-window.renderReferral = renderReferral;
+        }
     </script>
 </body>
 </html>
